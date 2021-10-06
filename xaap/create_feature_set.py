@@ -140,7 +140,7 @@ def main():
         pool.terminate()
 
     if is_error:
-        print(f'Usage: python {sys.argv[0]} configuration_file.txt date_start date_end mode')    
+        print(f'Usage: python {sys.argv[0]} configuration_file.txt [start] [end] ')    
 
 
 if __name__ == "__main__": 
