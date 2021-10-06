@@ -1,0 +1,17 @@
+[ENVIRONMENT]
+volcano = tungurahua
+cores = 20
+sipass_db_file  = ./data/sipass/base_tungurahua_2011_2021.csv
+features_folder = ./data/features/
+
+[STATIONS_INFO]
+network = EC
+location = None
+
+[MSEED_SERVER]
+mseed_client_id = ARCLINK
+mseed_server_config_file = ./config/server_configuration.json
+
+[FEATURES_CONFIG]
+features_file = ./config/features/features_00.json
+domains = time spectral cepstral 
