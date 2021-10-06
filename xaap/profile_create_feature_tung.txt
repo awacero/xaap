@@ -14,4 +14,4 @@ mseed_server_config_file = ./config/server_configuration.json
 
 [FEATURES_CONFIG]
 features_file = ./config/features/features_00.json
-domains = time spectral cepstral 
+domains = time spectral cepstral
