@@ -12,3 +12,10 @@ pip install get_mseed_data
 conda install scikit-learn=1.0
 conda install mlxtend
 ```
+
+# GUI installation 
+
+```
+conda install pyqtgraph
+conda install pyqt
+```
