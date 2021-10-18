@@ -3,5 +3,5 @@ volcano = tungurahua
 jobs = 20
 features_file = ./data/features/features_tungurahua_20211005192742.csv
 features_selected_folder = ./data/selected_features/
-max_features = 10
+max_features = 96
 

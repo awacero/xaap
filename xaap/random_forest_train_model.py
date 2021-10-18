@@ -50,7 +50,7 @@ def main():
             data.columns = data.columns.str.replace(' ', '')
 
             #Use just 2 types of events
-            #data = data.loc[(data.seismic_type.str.contains('LP')) | (data.seismic_type.str.contains('VT')) ]
+            #data = data.loc[(data.seismic_type.str.contains('LP')) | data.seismic_type.str.contains('TREMI')| data.seismic_type.str.contains('EXP')|(data.seismic_type.str.contains('VT')) ]
             data['seismic_type'].hist() 
 
             x_no_scaled = data.iloc[:,2:].to_numpy()
@@ -64,6 +64,10 @@ def main():
             data_seismic_type = data[['seismic_type']]
             data_seismic_type_encode = ordinal_encoder.fit_transform(data_seismic_type)
 
+
+            categories = ordinal_encoder.categories_[0].tolist()
+
+            print(categories)
 
             ##CHOSE BEST FEATURES 
             best_features =  [2, 3, 6, 8, 9, 11, 23, 26, 27, 29, 42, 44, 45, 47, 48, 50, 51, 52, 53, 63, 67, 71, 72, 73, 75, 95]
