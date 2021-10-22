@@ -5,7 +5,12 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import pyqtgraph.configfile
+
+from get_mseed_data import get_mseed_utils as gmutils
+from get_mseed_data import get_mseed
+
 from obspy.signal import filter  
+from obspy import Trace, Stream
 import numpy as np
 
 from obspy import read, UTCDateTime
@@ -29,28 +34,76 @@ class xaapGUI(QtGui.QWidget):
 
         QtGui.QWidget.__init__(self)
 
-        self.setupGUI()
-        self.region = pg.LinearRegionItem()
-
-
-        self.xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
-        '''
-        Load parameters
-        ##Create the configurations in object?
-        ##cargar aqui la estacion y fecha a leer por defecto, 
-        ##elegir entre el ultimo dia y una lista de estaciones
-        '''
+        self.setupGUI()       
+        self.xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))       
+        self.params = self.create_parameters()
+        self.parameters_dir = os.path.join(self.xaap_dir, 'config/xaap_parameters')
+        if os.path.exists(self.parameters_dir):
+            presets = [os.path.splitext(p)[0] for p in os.listdir(self.parameters_dir)]
+            self.params.param('Load Preset..').setLimits(['']+presets)
+        self.tree.setParameters(self.params, showTop=True)
+        logger.info("Configure parameter signals")
+        '''loadPreset is called with parameters: param and preset '''
+        self.params.param('Load Preset..').sigValueChanged.connect(self.loadPreset)
+        self.params.param('Save').sigActivated.connect(self.save)
+        self.params.param('Request Data').sigActivated.connect(self.request_stream)
+        self.params.param('Pre-process').sigActivated.connect(self.pre_process_stream)
+        self.params.param('Plot stream').sigActivated.connect(self.plot_stream)
+        self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
+        self.p1.sigRangeChanged.connect(self.set_p2_using_p1)
         
-        self.params = Parameter.create(
+        self.request_stream()
+
+        if self.stream == None:
+            logger.info("No data available")
+        elif len(self.stream[0].data)==0:
+            logger.info("No data available")
+        else:
+
+            logger.info("ok request_stream() in __init__. Continue with Pre-process")
+            self.pre_process_stream()
+            self.plot_stream()
+            #self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
+            
+
+
+
+
+        ''' 
+        ##Hacer que cambie la region al cambiar el valor maximo
+        min_region=0
+        max_region=int(len(self.times)*0.1)
+        self.window_region.setRegion([self.times[min_region], self.times[max_region]])  
+        self.p1.sigRangeChanged.connect(self.update_region)
+
+
+        '''
+
+    def create_parameters(self):
+        
+        xaap_parameters = Parameter.create(
             
             name='xaap configuration',type='group',children=[
             {'name':'Load Preset..','type':'list','limits':[]},
             {'name':'Save','type':'action'},
             {'name':'Load','type':'action'},
             {'name':'Parameters','type':'group','children':[
-                {'name':'GUI','type':'group','children':[
-                    {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
+
+                {'name':'MSEED','type':'group','children':[
+                    {'name':'client_id','type':'list','values':['ARCLINK','SEEDLINK','ARCHIVE','FDSN']},
+                    {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
+                                                                 ]},
+                {'name':'Station','type':'group','children':[
+                    {'name':'network','type':'str','value':'EC' },
+                    {'name':'station','type':'str','value':'BULB' },
+                    {'name':'location','type':'str','value':'' },
+                    {'name':'channel','type':'str','value':'HHZ' }
                                                             ]},
+                {'name':'Dates','type':'group','children':[
+                    {'name':'start','type':'str','value':'%s' %(UTCDateTime.now()-86400).strftime("%Y-%m-%d %H:%M:%S") },
+                    {'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
+                                                            ]},
+                                                          
                 {'name':'Filter','type':'group','children':[
                     {'name':'Filter type','type':'list','values':['highpass','bandpass','lowpass']},
                     {'name':'Freq_A','type':'float','value':0.5,'step':0.1,'limits': [0.1, None ]},
@@ -62,59 +115,51 @@ class xaapGUI(QtGui.QWidget):
                     {'name':'trigon','type':'float','value':1.5,'step':0.5,'limits': [0.5, None ]},
                     {'name':'trigoff','type':'float','value':0.5,'step':0.5,'limits': [0.5, None ]}
                                                                                                   ]},
+                {'name':'GUI','type':'group','children':[
+                    {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
+                                                            ]},
                                                           ]},
-            {'name':'Reprocess','type':'action'}              
-                                                                         ]
-                                                                         
+            {'name':'Request Data','type':'action'},                                                           
+            {'name':'Pre-process','type':'action'},
+            {'name':'Plot stream','type':'action'}              
+                                                                         ]                                                                         
                                                                          )
-
-
-        def create_parameters(self):
-            pass
-
-
         logger.info("End of set parameters") 
+        return xaap_parameters
 
-        self.tree.setParameters(self.params, showTop=True)
-        logger.info("Configure parameter signals")
-        self.params.param('Load Preset..').sigValueChanged.connect(self.loadPreset)
-        self.params.param('Save').sigActivated.connect(self.save)
-        self.params.param('Reprocess').sigActivated.connect(self.pre_process_stream)
 
-        logger.info('''Preprocess a default stream to get initial values,otherwise some functions won't work''')
-        self.pre_process_stream()
 
-       
+
+    def request_stream(self):
+
+        try:
+            mseed_client_id = self.params['Parameters','MSEED','client_id']
+            mseed_server_config_file = "%s/config/%s" %(self.xaap_dir,self.params['Parameters','MSEED','server_config_file'])
+            mseed_server_param = gmutils.read_config_file(mseed_server_config_file)
+            
+            self.mseed_client = get_mseed.choose_service(mseed_server_param[mseed_client_id])
+
+        except Exception as e:
+            raise Exception("Error connecting to MSEED server : %s" %str(e))
         
-        ## read list of preset configs
-        parameters_dir = os.path.join(self.xaap_dir, 'config/xaap_parameters')
-        if os.path.exists(parameters_dir):
-            presets = [os.path.splitext(p)[0] for p in os.listdir(parameters_dir)]
-            self.params.param('Load Preset..').setLimits(['']+presets)
+        try:
+            mseed_client_id = self.params['Parameters','MSEED','client_id']
+            network = self.params['Parameters','Station','network']
+            station = self.params['Parameters','Station','station']
+            location = self.params['Parameters','Station','location']
+            channel = self.params['Parameters','Station','channel']
+            start_time = UTCDateTime(self.params['Parameters','Dates', 'start'])
+            end_time = UTCDateTime(self.params['Parameters','Dates', 'end'])
+        except Exception as e:
+            raise Exception("Error request_stream was: %s" %str(e))
 
-        ''' Configure region  '''
+        try:
+            temp_mseed = get_mseed.get_stream(mseed_client_id,self.mseed_client,network,station,'',channel,start_time=start_time,end_time=end_time)
+            logger.info("request_stream() ok: %s" %temp_mseed)
+            self.stream = temp_mseed
 
-        logger.info("Create region")
-        self.p2.addItem(self.region, ignoreBounds=True)        
-        #self.region.setClipItem(self.p2d)
-
-        self.region.sigRegionChanged.connect(self.update_region_size)
-
-
-
-
-
-        ##Hacer que cambie la region al cambiar el valor maximo
-        min_region=0
-        max_region=int(len(self.times)*0.1)
-        self.region.setRegion([self.times[min_region], self.times[max_region]])
-        
-        t_min,t_max= self.region.getRegion()
-        t_max = datetime.utcfromtimestamp(t_max)
-        t_min = datetime.utcfromtimestamp(t_min)
-        logger.info("__init__ region %s,%s" %(t_min,t_max))
- 
-        #self.p1.sigRangeChanged.connect(self.update_region)
+        except Exception as e:
+            logger.error("Error in request_stream was: %s" %str(e))
 
 
 
@@ -128,11 +173,13 @@ class xaapGUI(QtGui.QWidget):
         pg.configfile.writeConfigFile(state, str(filename)) 
 
 
-    def loadPreset(self, param, preset):
+    def loadPreset(self,param,preset):
+
+        print("###%s, %s" %(param,preset))
         if preset == '':
             return
-        path = os.path.abspath(os.path.dirname(__file__))
-        fn = os.path.join(path, 'config', preset+".cfg")
+        fn = os.path.join(self.parameters_dir, preset+".cfg")
+        print(fn)
         state = pg.configfile.readConfigFile(fn)
         self.loadState(state)
 
@@ -144,11 +191,10 @@ class xaapGUI(QtGui.QWidget):
         self.params.restoreState(state, removeChildren=False)
 
         ##llamar a ploteo 
-        self.pre_process_stream()
+        #self.pre_process_stream()
 
 
     def setupGUI(self):
-
 
         self.layout = QtGui.QVBoxLayout()
         self.layout.setContentsMargins(0,0,0,0)
@@ -168,91 +214,102 @@ class xaapGUI(QtGui.QWidget):
         self.plot_window.setWindowTitle("XAAP")
         self.splitter2.addWidget(self.plot_window)
 
-
-
         self.datetime_axis_1 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom')
         self.datetime_axis_2 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom')
 
         self.p1 = self.plot_window.addPlot(row=1, col=0,axisItems={'bottom': self.datetime_axis_1})
         self.p2 = self.plot_window.addPlot(row=2, col=0,axisItems={'bottom': self.datetime_axis_2})
 
+        self.window_region = pg.LinearRegionItem()
+        self.p2.addItem(self.window_region, ignoreBounds=True)        
 
-    def read_stream(self):
-        
-        '''Return a obspy stream object'''
-        ##Llamar a un servidor MSEED
-        ##retornar un stream valido, si no es posible salir y pedir cambios de parámetros 
 
-        data_file="/home/wacero/proyectos_codigo/xaap/xaap/data/EC.RETU..SHZ.D.2012.187"
-        self.stream = read(data_file)     
-        logger.info("End of read_stream: %s" %self.stream)
 
     def pre_process_stream(self):
 
-        logger.info("Start pre_process_stream(): region is %s, %s" %self.region.getRegion())
+        self.processed_stream = None
+        logger.info("self.processed_stream cleaned :%s" %self.processed_stream)
+        try:
+            self.processed_stream = self.stream.copy()
+            self.processed_stream.merge(method=1, fill_value="interpolate",interpolation_samples=0)
+            logger.info("Stream merged: %s" %self.processed_stream)
 
-        self.read_stream()
-        self.stream.merge(method=1, fill_value="interpolate",interpolation_samples=0)
-        logger.info("Stream merged: %s" %self.stream)
+            self.times = self.processed_stream[0].times(type="timestamp")
 
-        logger.info("Set self.times")
-        self.times = self.stream[0].times(type="timestamp")
+            print("times original")
+            print(len(self.times))
+            print(len(self.processed_stream[0].data))
 
-        sampling_rate = self.stream[0].stats.sampling_rate
+            sampling_rate = self.processed_stream[0].stats.sampling_rate
 
-        f_a = self.params['Parameters','Filter','Freq_A']
-        f_b = self.params['Parameters','Filter','Freq_B']
+            f_a = self.params['Parameters','Filter','Freq_A']
+            f_b = self.params['Parameters','Filter','Freq_B']
 
-        filter_type = self.params['Parameters','Filter','Filter type']
-        if filter_type == 'highpass':
-            logger.info("highpass selected")
-            temp_data = filter.highpass(self.stream[0].data,f_a,sampling_rate,4)
-        elif filter_type == 'bandpass':
-            logger.info("bandpass selected")
-            temp_data = filter.bandpass(self.stream[0].data,f_a,f_b,sampling_rate,4)
-        elif filter_type == 'lowpass':
-            logger.info("lowpass selected")
-            temp_data = filter.lowpass(self.stream[0].data,f_a,sampling_rate,4)
+            filter_type = self.params['Parameters','Filter','Filter type']
+            if filter_type == 'highpass':
+                logger.info("highpass selected")
+                temp_data = filter.highpass(self.processed_stream[0].data,f_a,sampling_rate,4)
+            elif filter_type == 'bandpass':
+                logger.info("bandpass selected")
+                temp_data = filter.bandpass(self.processed_stream[0].data,f_a,f_b,sampling_rate,4)
+            elif filter_type == 'lowpass':
+                logger.info("lowpass selected")
+                temp_data = filter.lowpass(self.processed_stream[0].data,f_a,sampling_rate,4)
 
-        
-        self.stream[0].data = temp_data
-        
-        self.plot_stream()
-        self.detect_event()
+            
+            self.processed_stream[0].data = temp_data
+            
+            print("times filtered")
+            print(len(self.processed_stream[0].times(type="timestamp")))
+            print(len(self.processed_stream[0].data))
+
+        except Exception as e:
+            logger.error("Error at pre_process_stream() was : %s" %str(e))
 
 
     def plot_stream(self):
 
-        #self.p1.clearPlots()
-        #self.p2.clearPlots()
+        logger.info("start plot_stream(). Clean plots")
+        self.p1.clear()
+        self.p2.clearPlots()
 
-        
-        ##Hacer que cambie la region al cambiar el valor maximo
-        min_region=0
-        max_region=int(len(self.times)*self.params['Parameters','GUI','zoom_region_size'])
-        self.region.setRegion([self.times[min_region], self.times[max_region]])
-        logger.info("region int values %s" %max_region)
-        logger.info("Plot in p1")
-        self.p1.plot(self.times,self.stream[0].data,pen='g')
-        logger.info("Plot in p2")
-        self.p2d = self.p2.plot(self.times,self.stream[0].data,pen="w")
-        logger.info("Set clip item")
-        #self.region.setClipItem(self.p2d)
-        
+        try:
 
-        logger.info("End plot_stream()")
+            logger.info("Plot in p1: %s" %self.processed_stream)
+            self.p1.plot(self.times,self.processed_stream[0].data,pen='g')
+            logger.info("Plot in p2")
+            self.p2d = self.p2.plot(self.times,self.processed_stream[0].data,pen="w")
+            #logger.info("Set clip item") ##Not needed??
+            #self.window_region.setClipItem(self.p2d)
+            
+            min_region=0
+            max_region=int(len(self.times)*self.params['Parameters','GUI','zoom_region_size'])
+            self.window_region.setRegion([self.times[min_region], self.times[max_region]])
+            self.p1.setXRange(self.times[min_region], self.times[max_region])
 
+            logger.info("End plot_stream()")
 
-    def update_region_size(self):
+        except Exception as e:
+
+            logger.error("Error in plot_stream() was: %s" %str(e))
+
+    def set_p1_using_p2(self):
         
-        minX,maxX = self.region.getRegion()
+        minX,maxX = self.window_region.getRegion()
         
-        t_min,t_max= self.region.getRegion()
-        t_max = datetime.utcfromtimestamp(t_max)
-        t_min = datetime.utcfromtimestamp(t_min)
-        logger.info("update_region_size() %s,%s" %(t_min,t_max))
+        t_min = datetime.utcfromtimestamp(minX)
+        t_max = datetime.utcfromtimestamp(maxX)
+        #logger.info("update_region_size() %s,%s" %(t_min,t_max))
 
         self.p1.setXRange(minX,maxX,padding=0)
+
+
+    def set_p2_using_p1(self,window,viewRange):
+
+        rgn = viewRange[0]
+        self.window_region.setRegion(rgn)
+
+
 
     def update_region(self,window, viewRange):
         rgn = viewRange[0]
@@ -309,6 +366,17 @@ class xaapGUI(QtGui.QWidget):
         self.p1.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
         self.p2.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
 
+
+    def read_stream(self):
+        
+        '''Return a obspy stream object'''
+
+        try:
+            data_file="/home/wacero/proyectos_codigo/xaap/xaap/data/EC.RETU..SHZ.D.2012.187"
+            stream = read(data_file)     
+            logger.info("End of read_stream: %s" %self.stream)
+        except Exception as e:
+            raise("Error in read_stream was: %s" %str(e))
 
 
 
