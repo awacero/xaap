@@ -310,9 +310,10 @@ class xaapGUI(QtGui.QWidget):
             print(type(y_pred))
             print(y_pred.shape)
 
-            for i in range(rows_length):
+        for i in range(rows_length):
                 prediction = "%s,%s" %(data.iloc[i,0],categories[int(y_pred[i])])
                 logger.info(prediction)
+
     def setupGUI(self):
 
         self.layout = QtGui.QVBoxLayout()
