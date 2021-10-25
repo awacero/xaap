@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os,sys
+from pathlib import Path
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 from pyqtgraph.parametertree import Parameter, ParameterTree
@@ -27,8 +28,8 @@ from sklearn.ensemble import RandomForestClassifier
 import logging, logging.config
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
-
-logging.config.fileConfig('%s/config/logging.ini' %xaap_dir ,disable_existing_loggers=False)
+xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
+logging.config.fileConfig(xaap_config_dir / "logging.ini" ,disable_existing_loggers=False)
 logger = logging.getLogger('stdout')
 logger.setLevel(logging.INFO)
 
@@ -43,7 +44,7 @@ class xaapGUI(QtGui.QWidget):
         self.setupGUI()       
         self.xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))       
         self.params = self.create_parameters()
-        self.parameters_dir = os.path.join(self.xaap_dir, 'config/xaap_parameters')
+        self.parameters_dir = Path(self.xaap_dir, 'config/xaap_parameters')
         if os.path.exists(self.parameters_dir):
             presets = [os.path.splitext(p)[0] for p in os.listdir(self.parameters_dir)]
             self.params.param('Load Preset..').setLimits(['']+presets)
@@ -136,7 +137,8 @@ class xaapGUI(QtGui.QWidget):
 
         try:
             mseed_client_id = self.params['Parameters','MSEED','client_id']
-            mseed_server_config_file = "%s/config/%s" %(self.xaap_dir,self.params['Parameters','MSEED','server_config_file'])
+            #mseed_server_config_file = "%s/config/%s" %(self.xaap_dir,self.params['Parameters','MSEED','server_config_file'])
+            mseed_server_config_file = xaap_config_dir / self.params['Parameters','MSEED','server_config_file']
             mseed_server_param = gmutils.read_config_file(mseed_server_config_file)
             
             self.mseed_client = get_mseed.choose_service(mseed_server_param[mseed_client_id])
