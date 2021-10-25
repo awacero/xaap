@@ -19,3 +19,16 @@ conda install mlxtend
 conda install pyqtgraph
 conda install pyqt
 ```
+
+# Clone XAAP code
+```
+git clone https://github.com/awacero/xaap.git
+
+```
+
+# Run XAAP
+```
+conda activate xaap
+cd xaap/xaap
+python xaap_gui.py 
+```
