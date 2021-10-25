@@ -270,49 +270,55 @@ class xaapGUI(QtGui.QWidget):
 
     def classify_triggers(self):
 
+        ##leer esto desde la configuracion
+        ## leer solo las mejores caracteristicas?
         feature_config = {"features_file":"%s/config/features/features_00.json" %self.xaap_dir,
                     "domains":"time spectral cepstral"}
-        features = FeatureVector(feature_config, verbatim=2)
         tungu_clf= pickle.load(open(os.path.join('%s/data/models' %self.xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
-        print(tungu_clf)
+        #Como guardar categorias en  el modelo?
         categories = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
 
+        features = FeatureVector(feature_config, verbatim=2)
         input_data = []
+
+        
 
         logger.info("start feature calculation")
         for trace in self.triggers_traces:
             print(trace)
+            ##Modificar file code para que incluya la ventana de end_time
             file_code = "%s.%s.%s.%s.%s" %(trace.stats.network,trace.stats.station,trace.stats.location,trace.stats.channel,trace.stats.starttime.strftime("%Y.%m.%d.%H%M%S"))
             features.compute(trace.data,trace.stats.sampling_rate)
             row = np.append(file_code, features.featuresValues)
             input_data.append(row)
 
-            column_names = ['data_code']
-            data = pd.DataFrame(input_data)
-            rows_length,column_length = data.shape
+        '''Create pandas data frame from features vectors'''
+        column_names = ['data_code']
+        data = pd.DataFrame(input_data)
+        rows_length,column_length = data.shape
 
-            for i in range(column_length - 1):
-                column_names.append("f_%s" %i)
+        for i in range(column_length - 1):
+            column_names.append("f_%s" %i)
 
-            data.columns = column_names
-            data.columns = data.columns.str.replace(' ', '')
+        data.columns = column_names
+        data.columns = data.columns.str.replace(' ', '')
 
-            x_no_scaled = data.iloc[:,1:].to_numpy()
+        x_no_scaled = data.iloc[:,1:].to_numpy()
 
-            scaler = StandardScaler()
-            x = scaler.fit_transform(x_no_scaled)
-            data_scaled = pd.DataFrame(x,columns=data.columns[1:])
+        scaler = StandardScaler()
+        x = scaler.fit_transform(x_no_scaled)
+        data_scaled = pd.DataFrame(x,columns=data.columns[1:])
 
-            print(data_scaled.shape)
+        print(data_scaled.shape)
 
-            y_pred=tungu_clf.predict(data_scaled)
+        y_pred=tungu_clf.predict(data_scaled)
 
-            print(type(y_pred))
-            print(y_pred.shape)
+        print(type(y_pred))
+        print(y_pred.shape)
 
         for i in range(rows_length):
-                prediction = "%s,%s" %(data.iloc[i,0],categories[int(y_pred[i])])
-                logger.info(prediction)
+            prediction = "%s,%s" %(data.iloc[i,0],categories[int(y_pred[i])])
+            logger.info(prediction)
 
     def setupGUI(self):
 
