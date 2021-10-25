@@ -275,6 +275,8 @@ class xaapGUI(QtGui.QWidget):
         feature_config = {"features_file":"%s/config/features/features_00.json" %self.xaap_dir,
                     "domains":"time spectral cepstral"}
         tungu_clf= pickle.load(open(os.path.join('%s/data/models' %self.xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
+        classified_triggers_file = Path(self.xaap_dir,"data/classifications") / UTCDateTime.now().strftime("out_xaap_%Y.%m.%d.%H.%M.%S.txt")
+        classification_file = open(classified_triggers_file,'a+')
         #Como guardar categorias en  el modelo?
         categories = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
 
@@ -287,7 +289,8 @@ class xaapGUI(QtGui.QWidget):
         for trace in self.triggers_traces:
             print(trace)
             ##Modificar file code para que incluya la ventana de end_time
-            file_code = "%s.%s.%s.%s.%s" %(trace.stats.network,trace.stats.station,trace.stats.location,trace.stats.channel,trace.stats.starttime.strftime("%Y.%m.%d.%H%M%S"))
+            trace_window = int(trace.stats.endtime - trace.stats.starttime)
+            file_code = "%s.%s.%s.%s.%s.%s" %(trace.stats.network,trace.stats.station,trace.stats.location,trace.stats.channel,trace.stats.starttime.strftime("%Y.%m.%d.%H.%M.%S"),trace_window)
             features.compute(trace.data,trace.stats.sampling_rate)
             row = np.append(file_code, features.featuresValues)
             input_data.append(row)
@@ -317,9 +320,9 @@ class xaapGUI(QtGui.QWidget):
         print(y_pred.shape)
 
         for i in range(rows_length):
-            prediction = "%s,%s" %(data.iloc[i,0],categories[int(y_pred[i])])
+            prediction = "%s,%s\n" %(data.iloc[i,0],categories[int(y_pred[i])])
             logger.info(prediction)
-
+            classification_file.write(prediction)
     def setupGUI(self):
 
         self.layout = QtGui.QVBoxLayout()
