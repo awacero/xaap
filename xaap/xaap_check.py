@@ -2,14 +2,19 @@
 
 
 import os, sys
+import pandas as pd
 from pathlib import Path
+from PyQt5.QtGui import QStandardItemModel, QStandardItem
+
+from PyQt5.QtWidgets import QTableView
+
 import pyqtgraph as pg
 
 from pyqtgraph.Qt import QtGui, QtCore
 
 from pyqtgraph.Qt.QtGui import QTableWidget
 
-
+from pyqtgraph import TableWidget
 
 import logging, logging.config
 
@@ -30,8 +35,57 @@ class xaap_check(QtGui.QWidget):
         logger.info("Continuation of all this #$%&")
 
         QtGui.QWidget.__init__(self)
+        self.predictions_file = Path(xaap_dir,"data/classifications/") / "out_xaap_2021.10.25.22.24.53.txt"
+
+        self.setup_model_view()
 
         self.setupGUI()
+
+
+    def load_csv_file(self):
+
+
+        try:
+            prediction_data  = pd.read_csv(self.predictions_file,sep=',')
+            self.table_widget.setData(prediction_data.to_numpy())
+        except Exception as e:
+            raise Exception("Error reading prediction file : %s" %str(e))
+        
+            
+
+        '''
+        open_csv = open(self.predictions_file,"r")
+        reader = csv.reader(open_csv)
+        for i, row in enumerate(csv.reader(open_csv)):
+            items = [QStandardItem(item) for item in row]
+            self.model.insertRow(i,items)
+        '''
+
+    def setup_model_view(self):
+
+        """
+        Set up standard model and table view. 
+        """
+        """
+        self.table_widget = QTableWidget()
+        self.model = QStandardItemModel()      
+        self.table_view = QTableView()
+        # For QAbstractItemView.ExtendedSelection = 3
+        self.table_view.SelectionMode(3) 
+        self.table_view.setModel(self.model)
+        """ 
+
+        # Set initial row and column values
+        #self.model.setRowCount(3)
+        #self.model.setColumnCount(4)
+        self.table_widget = TableWidget(editable=True)
+        self.load_csv_file()
+
+        """
+        self.model = QStandardItemModel()
+        self.table_widget.setModel(self.model)
+        self.load_csv_file()
+        """
 
 
     def setupGUI(self):
@@ -46,43 +100,34 @@ class xaap_check(QtGui.QWidget):
         self.datetime_axis_1 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom')
         self.main_plot = pg.GraphicsLayoutWidget()
         self.side_plot = pg.GraphicsLayoutWidget()
+        
+        self.plot_a = self.side_plot.addPlot(row=0,col=0)
+        self.plot_b = self.side_plot.addPlot(row=1,col=0)
+        self.plot_c = self.side_plot.addPlot(row=2,col=0)
+
         self.time_pw = self.main_plot.addPlot(row=1, col=0,axisItems={'bottom': self.datetime_axis_1})
 
-        self.table_widget = QTableWidget()
-        self.table_widget.setRowCount(4)
-        self.table_widget.setColumnCount(4)
-
-
-        '''horizontal splitter splits windows in 2 verticall'''
+        '''horizontal splitter sides widgets horizontally'''
         self.splitter_horizontal = QtGui.QSplitter()
         self.splitter_horizontal.setOrientation(QtCore.Qt.Orientation.Horizontal)
-        self.layout.addWidget(self.splitter_horizontal)
-        
-        self.splitter_horizontal.addWidget(self.main_plot)
-        self.splitter_horizontal.addWidget(self.side_plot) 
-
+        '''vertical splitter stacks widgets vertically'''
         self.splitter_vertical = QtGui.QSplitter()
         self.splitter_vertical.setOrientation(QtCore.Qt.Orientation.Vertical)
-
-        #self.splitter_vertical.addWidget(self.splitter_horizontal)
-
-        #self.splitter_vertical.addWidget(self.tree2)
+        
+        self.splitter_vertical.addWidget(self.main_plot)
+        #self.splitter_vertical.addWidget(self.table_view)
         self.splitter_vertical.addWidget(self.table_widget)
 
-        self.layout.addWidget(self.splitter_vertical)
-
-        '''
-        self.splitter_vertical = QtGui.QSplitter()
-        self.splitter_vertical.setOrientation(QtCore.Qt.Orientation.Vertical)
-        self.layout.addWidget(self.splitter_vertical)
-        self.splitter_vertical.addWidget(self.tree)
-        self.splitter_vertical.addWidget(self.plot_window)
-        '''
+        self.splitter_horizontal.addWidget(self.splitter_vertical)
+        self.splitter_horizontal.addWidget(self.side_plot)
+        
+        self.splitter_horizontal.setSizes([600,200])
+        self.splitter_vertical.setSizes([600,200])
+        self.layout.addWidget(self.splitter_horizontal)
+    
 
 
-
-
-
+        
 
 if __name__ == '__main__':
     app = pg.mkQApp()
