@@ -283,7 +283,7 @@ class xaapGUI(QtGui.QWidget):
         features = FeatureVector(feature_config, verbatim=2)
         input_data = []
 
-        
+        trigger_dir = Path(self.xaap_dir,"trigger")
 
         logger.info("start feature calculation")
         for trace in self.triggers_traces:
@@ -294,6 +294,15 @@ class xaapGUI(QtGui.QWidget):
             features.compute(trace.data,trace.stats.sampling_rate)
             row = np.append(file_code, features.featuresValues)
             input_data.append(row)
+
+            '''
+            try:
+                trace.write("%s/%s.mseed" %(trigger_dir,file_code),format="MSEED")
+
+            except Exception as e:
+                print("error in write")
+            
+            '''
 
         '''Create pandas data frame from features vectors'''
         column_names = ['data_code']
@@ -319,10 +328,16 @@ class xaapGUI(QtGui.QWidget):
         print(type(y_pred))
         print(y_pred.shape)
 
+
+
+
+
         for i in range(rows_length):
             prediction = "%s,%s\n" %(data.iloc[i,0],categories[int(y_pred[i])])
             logger.info(prediction)
             classification_file.write(prediction)
+    
+    
     def setupGUI(self):
 
         self.layout = QtGui.QVBoxLayout()
@@ -343,8 +358,8 @@ class xaapGUI(QtGui.QWidget):
         self.plot_window.setWindowTitle("XAAP")
         self.splitter2.addWidget(self.plot_window)
 
-        self.datetime_axis_1 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom')
-        self.datetime_axis_2 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom')
+        self.datetime_axis_1 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
+        self.datetime_axis_2 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
 
         self.p1 = self.plot_window.addPlot(row=1, col=0,axisItems={'bottom': self.datetime_axis_1})
         self.p2 = self.plot_window.addPlot(row=2, col=0,axisItems={'bottom': self.datetime_axis_2})
@@ -394,7 +409,8 @@ class xaapGUI(QtGui.QWidget):
         self.window_region.setRegion(rgn)
 
 
-
+##crear nueva ventana que cargue el archivo de texto en tablas y plotee los triggers sobre la señal
+##con etiquetas y con ventana 
 
 
 

@@ -2,23 +2,27 @@
 
 
 import os, sys
-import pandas as pd
 from pathlib import Path
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
-from PyQt5.QtWidgets import QTableView
+from get_mseed_data import get_mseed_utils as gmutils
+from get_mseed_data import get_mseed
 
 import pyqtgraph as pg
 
+from pyqtgraph.widgets import MatplotlibWidget
+
 from pyqtgraph.Qt import QtGui, QtCore
-
-from pyqtgraph.Qt.QtGui import QTableWidget
-
 from pyqtgraph import TableWidget
+from pyqtgraph.parametertree import Parameter, ParameterTree
+
+from obspy import UTCDateTime
+import pandas as pd
+import matplotlib.pyplot as plt
 
 import logging, logging.config
 
-from pyqtgraph.parametertree.ParameterTree import ParameterTree
+#from pyqtgraph.parametertree.ParameterTree import ParameterTree, Parameter
+
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
@@ -35,57 +39,114 @@ class xaap_check(QtGui.QWidget):
         logger.info("Continuation of all this #$%&")
 
         QtGui.QWidget.__init__(self)
-        self.predictions_file = Path(xaap_dir,"data/classifications/") / "out_xaap_2021.10.25.22.24.53.txt"
+        self.predictions_file = Path(xaap_dir,"data/classifications/") / "out_xaap_2021.10.29.18.59.26.txt"
+
 
         self.setup_model_view()
 
         self.setupGUI()
+        self.params = self.create_parameters()
+        self.tree.setParameters(self.params, showTop=True)
+        self.connect_to_mseed_server()
+
+        self.table_widget.verticalHeader().sectionDoubleClicked.connect(self.get_trigger)
+
+
+    def connect_to_mseed_server(self):
+
+        try:
+            self.mseed_client_id = self.params['Parameters','MSEED','client_id']
+            mseed_server_config_file = xaap_config_dir / self.params['Parameters','MSEED','server_config_file']
+            mseed_server_param = gmutils.read_config_file(mseed_server_config_file)
+            
+            self.mseed_client = get_mseed.choose_service(mseed_server_param[self.mseed_client_id])
+
+        except Exception as e:
+            raise Exception("Error connecting to MSEED server : %s" %str(e))
+        
+
+
+
+
 
 
     def load_csv_file(self):
 
 
         try:
-            prediction_data  = pd.read_csv(self.predictions_file,sep=',')
-            self.table_widget.setData(prediction_data.to_numpy())
+            predicted_data  = pd.read_csv(self.predictions_file,sep=',')
+            rows_length,column_length = predicted_data.shape
+
+            column_names = ['trigger_code','prediction']
+            predicted_data.columns = column_names
+            predicted_data['operator']=''
+            ##usar pyqtgraph metaarray para los nombres de columna
+            self.table_widget.setData(predicted_data.to_numpy())
+
         except Exception as e:
             raise Exception("Error reading prediction file : %s" %str(e))
         
-            
-
-        '''
-        open_csv = open(self.predictions_file,"r")
-        reader = csv.reader(open_csv)
-        for i, row in enumerate(csv.reader(open_csv)):
-            items = [QStandardItem(item) for item in row]
-            self.model.insertRow(i,items)
-        '''
-
     def setup_model_view(self):
 
-        """
-        Set up standard model and table view. 
-        """
-        """
-        self.table_widget = QTableWidget()
-        self.model = QStandardItemModel()      
-        self.table_view = QTableView()
-        # For QAbstractItemView.ExtendedSelection = 3
-        self.table_view.SelectionMode(3) 
-        self.table_view.setModel(self.model)
-        """ 
-
-        # Set initial row and column values
-        #self.model.setRowCount(3)
-        #self.model.setColumnCount(4)
         self.table_widget = TableWidget(editable=True)
         self.load_csv_file()
 
-        """
-        self.model = QStandardItemModel()
-        self.table_widget.setModel(self.model)
-        self.load_csv_file()
-        """
+    
+
+    def get_trigger(self):
+
+        print(self.table_widget.currentRow())
+        trigger_code = self.table_widget.currentItem().text()
+        net,station,location,channel,Y,m,d,H,M,S,window = trigger_code.split(".")
+        start_time=UTCDateTime("%s-%s-%sT%s:%s:%s"%(Y,m,d,H,M,S))
+        window = int(window)
+        end_time = start_time + window
+
+        print(net,station,start_time)
+        #poner try, llamar a preprocesar, usar informacion de filtros en parametros, agregar pads?
+        self.trigger_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,'',channel,start_time=start_time,window_size=window)
+        self.trigger_times = self.trigger_stream[0].times(type='timestamp')
+        print(self.trigger_stream)
+
+        self.trigger_plot.clearPlots()
+        self.trigger_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='g')
+        
+
+
+        '''
+        mw_figure = self.mw.getFigure()
+        mw_axes = mw_figure.get_axes()
+        mw_axes_2 = mw_figure.add_subplot(111)
+        print("###")
+        print(type(mw_figure))
+        print(type(mw_axes_2))
+
+        for i,ax in enumerate(mw_axes):
+            print("inicio")
+            print(i,ax)
+        #subplot.draw(spectre)
+        
+        
+        self.mw_axes = self.mw.getFigure().add_subplot(111)
+        self.mw_axes.clear()
+        ''' 
+
+        self.mw_fig = self.mw.getFigure()
+        self.mw_fig.clf()
+        self.mw_axes = self.mw_fig.add_subplot(111)
+        print("Call plot spectrogram")
+        self.trigger_stream.spectrogram(wlen=2.5,cmap=plt.cm.jet,log=False,axes=self.mw_axes)
+        self.mw.draw()
+
+        pad = 300
+        self.paded_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,'',channel,start_time=start_time - pad ,end_time=end_time +  pad)
+        self.paded_times = self.paded_stream[0].times(type='timestamp')
+
+        self.paded_plot.clearPlots()
+        self.paded_plot.plot(self.paded_times,self.paded_stream[0].data,pen='w')
+        self.paded_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='r')
+
+
 
 
     def setupGUI(self):
@@ -96,16 +157,19 @@ class xaap_check(QtGui.QWidget):
 
 
         self.tree =  ParameterTree()
-        self.tree2 = ParameterTree()
-        self.datetime_axis_1 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom')
-        self.main_plot = pg.GraphicsLayoutWidget()
-        self.side_plot = pg.GraphicsLayoutWidget()
-        
-        self.plot_a = self.side_plot.addPlot(row=0,col=0)
-        self.plot_b = self.side_plot.addPlot(row=1,col=0)
-        self.plot_c = self.side_plot.addPlot(row=2,col=0)
+        self.datetime_axis_1 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
+        self.datetime_axis_2 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
 
-        self.time_pw = self.main_plot.addPlot(row=1, col=0,axisItems={'bottom': self.datetime_axis_1})
+        self.main_layout = pg.GraphicsLayoutWidget()
+        self.side_layout = pg.GraphicsLayoutWidget()      
+        
+        self.trigger_plot = self.main_layout.addPlot(row=0, col=0,axisItems={'bottom': self.datetime_axis_1})
+        self.paded_plot = self.main_layout.addPlot(row=1, col=0,axisItems={'bottom': self.datetime_axis_2})
+
+        self.mw = MatplotlibWidget.MatplotlibWidget()
+        self.plot_b = self.side_layout.addPlot(row=1,col=0)
+        self.plot_c = self.side_layout.addPlot(row=2,col=0)
+
 
         '''horizontal splitter sides widgets horizontally'''
         self.splitter_horizontal = QtGui.QSplitter()
@@ -114,17 +178,48 @@ class xaap_check(QtGui.QWidget):
         self.splitter_vertical = QtGui.QSplitter()
         self.splitter_vertical.setOrientation(QtCore.Qt.Orientation.Vertical)
         
-        self.splitter_vertical.addWidget(self.main_plot)
-        #self.splitter_vertical.addWidget(self.table_view)
+        self.splitter_vertical_side = QtGui.QSplitter()
+        self.splitter_vertical_side.setOrientation(QtCore.Qt.Orientation.Vertical)
+
+        self.splitter_vertical.addWidget(self.main_layout)
         self.splitter_vertical.addWidget(self.table_widget)
 
+        self.splitter_vertical_side.addWidget(self.mw)
+        self.splitter_vertical_side.addWidget(self.side_layout)
+
+        self.splitter_horizontal.addWidget(self.tree)
         self.splitter_horizontal.addWidget(self.splitter_vertical)
-        self.splitter_horizontal.addWidget(self.side_plot)
+        self.splitter_horizontal.addWidget(self.splitter_vertical_side)
         
-        self.splitter_horizontal.setSizes([600,200])
+        self.splitter_horizontal.setSizes([150,600,200])
         self.splitter_vertical.setSizes([600,200])
         self.layout.addWidget(self.splitter_horizontal)
     
+
+    def create_parameters(self):
+        
+        xaap_parameters = Parameter.create(
+            
+            name='xaap configuration',type='group',children=[
+
+            {'name':'Parameters','type':'group','children':[
+
+                {'name':'MSEED','type':'group','children':[
+                    {'name':'client_id','type':'list','values':['ARCLINK','SEEDLINK','ARCHIVE','FDSN']},
+                    {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
+                                                                 ]},
+
+                {'name':'GUI','type':'group','children':[
+                    {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
+                                                            ]},
+                                                          ]},
+            {'name':'Save triggers','type':'action'}                
+                                                                         ]                                                                         
+                                                                         )
+        logger.info("End of set parameters") 
+        return xaap_parameters
+
+
 
 
         
