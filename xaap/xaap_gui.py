@@ -150,7 +150,11 @@ class xaapGUI(QtGui.QWidget):
             mseed_client_id = self.params['Parameters','MSEED','client_id']
             network = self.params['Parameters','Station','network']
             station = self.params['Parameters','Station','station']
+            print("###")
             location = self.params['Parameters','Station','location']
+            if not location:
+                location = ''
+
             channel = self.params['Parameters','Station','channel']
             start_time = UTCDateTime(self.params['Parameters','Dates', 'start'])
             end_time = UTCDateTime(self.params['Parameters','Dates', 'end'])
@@ -158,7 +162,7 @@ class xaapGUI(QtGui.QWidget):
             raise Exception("Error request_stream was: %s" %str(e))
 
         try:
-            temp_mseed = get_mseed.get_stream(mseed_client_id,self.mseed_client,network,station,'',channel,start_time=start_time,end_time=end_time)
+            temp_mseed = get_mseed.get_stream(mseed_client_id,self.mseed_client,network,station,location,channel,start_time=start_time,end_time=end_time)
             logger.info("request_stream() result was: %s" %temp_mseed)
             self.stream = temp_mseed
 
@@ -262,7 +266,9 @@ class xaapGUI(QtGui.QWidget):
                     trigger_dot_list.append(0)
 
                     trigger_trace = temp_trace.slice(window_start + time_on, window_start + time_off)
-                    self.triggers_traces.append(trigger_trace)
+                    #MINIMUM TRIGGER LENGTH
+                    if trigger_trace.count() > 1:
+                        self.triggers_traces.append(trigger_trace)
         
         #print(triggers_on,trigger_dot_list)
         self.p1.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
@@ -287,6 +293,7 @@ class xaapGUI(QtGui.QWidget):
 
         logger.info("start feature calculation")
         for trace in self.triggers_traces:
+            print("!####")
             print(trace)
             ##Modificar file code para que incluya la ventana de end_time
             trace_window = int(trace.stats.endtime - trace.stats.starttime)

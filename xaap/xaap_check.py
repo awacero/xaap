@@ -39,7 +39,7 @@ class xaap_check(QtGui.QWidget):
         logger.info("Continuation of all this #$%&")
 
         QtGui.QWidget.__init__(self)
-        self.predictions_file = Path(xaap_dir,"data/classifications/") / "out_xaap_2021.10.29.18.59.26.txt"
+        self.predictions_file = Path(xaap_dir,"data/classifications/") / "out_xaap_2021.10.29.20.38.14.txt"
 
 
         self.setup_model_view()
@@ -109,33 +109,16 @@ class xaap_check(QtGui.QWidget):
         print(self.trigger_stream)
 
         self.trigger_plot.clearPlots()
+        self.plot_b.clearPlots()
         self.trigger_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='g')
-        
-
-
-        '''
-        mw_figure = self.mw.getFigure()
-        mw_axes = mw_figure.get_axes()
-        mw_axes_2 = mw_figure.add_subplot(111)
-        print("###")
-        print(type(mw_figure))
-        print(type(mw_axes_2))
-
-        for i,ax in enumerate(mw_axes):
-            print("inicio")
-            print(i,ax)
-        #subplot.draw(spectre)
-        
-        
-        self.mw_axes = self.mw.getFigure().add_subplot(111)
-        self.mw_axes.clear()
-        ''' 
+        self.plot_b_spectro = self.plot_b.plot(self.trigger_times,self.trigger_stream[0].data, pen='r')
+        self.plot_b_spectro.setFftMode(True)
 
         self.mw_fig = self.mw.getFigure()
-        self.mw_fig.clf()
+        #self.mw_fig.clf()
         self.mw_axes = self.mw_fig.add_subplot(111)
-        print("Call plot spectrogram")
-        self.trigger_stream.spectrogram(wlen=2.5,cmap=plt.cm.jet,log=False,axes=self.mw_axes)
+        sampling_rate = self.trigger_stream[0].stats.sampling_rate
+        self.trigger_stream.spectrogram(samp_rate=sampling_rate,cmap=plt.cm.jet,log=False,axes=self.mw_axes)
         self.mw.draw()
 
         pad = 300
@@ -146,7 +129,7 @@ class xaap_check(QtGui.QWidget):
         self.paded_plot.plot(self.paded_times,self.paded_stream[0].data,pen='w')
         self.paded_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='r')
 
-
+        
 
 
     def setupGUI(self):
@@ -168,7 +151,7 @@ class xaap_check(QtGui.QWidget):
 
         self.mw = MatplotlibWidget.MatplotlibWidget()
         self.plot_b = self.side_layout.addPlot(row=1,col=0)
-        self.plot_c = self.side_layout.addPlot(row=2,col=0)
+        #self.plot_c = self.side_layout.addPlot(row=2,col=0)
 
 
         '''horizontal splitter sides widgets horizontally'''
