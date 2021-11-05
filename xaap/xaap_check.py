@@ -1,5 +1,4 @@
-
-
+# -*- coding: utf-8 -*-
 
 import os, sys
 from pathlib import Path
@@ -8,20 +7,16 @@ from get_mseed_data import get_mseed_utils as gmutils
 from get_mseed_data import get_mseed
 
 import pyqtgraph as pg
-
 from pyqtgraph.widgets import MatplotlibWidget
-
 from pyqtgraph.Qt import QtGui, QtCore
 from pyqtgraph import TableWidget
 from pyqtgraph.parametertree import Parameter, ParameterTree
+import matplotlib.pyplot as plt
+
 
 from obspy import UTCDateTime
 import pandas as pd
-import matplotlib.pyplot as plt
-
 import logging, logging.config
-
-#from pyqtgraph.parametertree.ParameterTree import ParameterTree, Parameter
 
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
@@ -39,17 +34,46 @@ class xaap_check(QtGui.QWidget):
         logger.info("Continuation of all this #$%&")
 
         QtGui.QWidget.__init__(self)
+
+        
         self.predictions_file = Path(xaap_dir,"data/classifications/") / "out_xaap_2021.10.29.20.38.14.txt"
+        self.classifications_path = Path(xaap_dir,"data/classifications/")
 
-
-        self.setup_model_view()
-
+        
+        #self.setup_model_view()
         self.setupGUI()
         self.params = self.create_parameters()
+        if os.path.exists(self.classifications_path):
+            classified_triggers_files = [os.path.splitext(p)[0] for p in os.listdir(self.classifications_path)]
+            self.params.param('Classification file').setLimits(classified_triggers_files)
+
         self.tree.setParameters(self.params, showTop=True)
         self.connect_to_mseed_server()
 
+        #self.params.param('Classification file').sigValueChanged.connect(self.load_csv)
         self.table_widget.verticalHeader().sectionDoubleClicked.connect(self.get_trigger)
+
+        self.params.param('Load classifications').sigActivated.connect(self.load_csv_file)
+
+
+    def load_csv(self,param,classification_file):
+        if classification_file == '':
+            return
+        cl_file_path = Path(self.classifications_path,classification_file+".txt")
+
+        try:
+            predicted_data  = pd.read_csv(cl_file_path,sep=',')
+            rows_length,column_length = predicted_data.shape
+
+            column_names = ['trigger_code','prediction']
+            predicted_data.columns = column_names
+            predicted_data['operator']=''
+            ##usar pyqtgraph metaarray para los nombres de columna
+            self.table_widget.setData(predicted_data.to_numpy())
+
+        except Exception as e:
+            raise Exception("Error reading prediction file : %s" %str(e))
+
 
 
     def connect_to_mseed_server(self):
@@ -67,14 +91,15 @@ class xaap_check(QtGui.QWidget):
 
 
 
-
-
-
     def load_csv_file(self):
 
 
         try:
-            predicted_data  = pd.read_csv(self.predictions_file,sep=',')
+            print(self.params['Classification file'])
+            classification_file_path = Path(self.classifications_path , self.params['Classification file']+'.txt')
+            print(classification_file_path)
+            #predicted_data  = pd.read_csv(self.predictions_file,sep=',')
+            predicted_data  = pd.read_csv(classification_file_path,sep=',')
             rows_length,column_length = predicted_data.shape
 
             column_names = ['trigger_code','prediction']
@@ -89,7 +114,8 @@ class xaap_check(QtGui.QWidget):
     def setup_model_view(self):
 
         self.table_widget = TableWidget(editable=True)
-        self.load_csv_file()
+        #La carga debe hacerse con un boton
+        #self.load_csv_file()
 
     
 
@@ -98,13 +124,15 @@ class xaap_check(QtGui.QWidget):
         print(self.table_widget.currentRow())
         trigger_code = self.table_widget.currentItem().text()
         net,station,location,channel,Y,m,d,H,M,S,window = trigger_code.split(".")
+        if not location:
+            location = ''
         start_time=UTCDateTime("%s-%s-%sT%s:%s:%s"%(Y,m,d,H,M,S))
         window = int(window)
         end_time = start_time + window
 
         print(net,station,start_time)
         #poner try, llamar a preprocesar, usar informacion de filtros en parametros, agregar pads?
-        self.trigger_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,'',channel,start_time=start_time,window_size=window)
+        self.trigger_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,location,channel,start_time=start_time,window_size=window)
         self.trigger_times = self.trigger_stream[0].times(type='timestamp')
         print(self.trigger_stream)
 
@@ -118,7 +146,8 @@ class xaap_check(QtGui.QWidget):
         #self.mw_fig.clf()
         self.mw_axes = self.mw_fig.add_subplot(111)
         sampling_rate = self.trigger_stream[0].stats.sampling_rate
-        self.trigger_stream.spectrogram(samp_rate=sampling_rate,cmap=plt.cm.jet,log=False,axes=self.mw_axes)
+        #self.trigger_stream.spectrogram(samp_rate=sampling_rate,cmap=plt.cm.jet,log=False,axes=self.mw_axes)
+        self.trigger_stream.spectrogram(wlen=2*sampling_rate, per_lap=0.95,dbscale=True,log=False,axes=self.mw_axes,cmap=plt.cm.jet)
         self.mw.draw()
 
         pad = 300
@@ -138,7 +167,7 @@ class xaap_check(QtGui.QWidget):
         self.layout.setContentsMargins(0,0,0,0)
         self.setLayout(self.layout)
 
-
+        self.table_widget = TableWidget(editable=True)
         self.tree =  ParameterTree()
         self.datetime_axis_1 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
         self.datetime_axis_2 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
@@ -174,7 +203,7 @@ class xaap_check(QtGui.QWidget):
         self.splitter_horizontal.addWidget(self.splitter_vertical)
         self.splitter_horizontal.addWidget(self.splitter_vertical_side)
         
-        self.splitter_horizontal.setSizes([150,600,200])
+        self.splitter_horizontal.setSizes([300,600,200])
         self.splitter_vertical.setSizes([600,200])
         self.layout.addWidget(self.splitter_horizontal)
     
@@ -185,6 +214,7 @@ class xaap_check(QtGui.QWidget):
             
             name='xaap configuration',type='group',children=[
 
+            {'name':'Classification file','type':'list','limits':[]},
             {'name':'Parameters','type':'group','children':[
 
                 {'name':'MSEED','type':'group','children':[
@@ -196,6 +226,7 @@ class xaap_check(QtGui.QWidget):
                     {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
                                                             ]},
                                                           ]},
+            {'name':'Load classifications','type':'action'},
             {'name':'Save triggers','type':'action'}                
                                                                          ]                                                                         
                                                                          )
