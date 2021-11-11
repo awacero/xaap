@@ -12,13 +12,13 @@ from get_mseed_data import get_mseed
 
 from obspy.signal import filter  
 from obspy import Trace, Stream
-import numpy as np
-
+from obspy.signal.trigger import coincidence_trigger
 from obspy import read, UTCDateTime
 from obspy.signal.trigger import classic_sta_lta
 from obspy.signal.trigger import classic_sta_lta, classic_sta_lta_py, recursive_sta_lta_py, plot_trigger, trigger_onset
 from datetime import date, datetime
 
+import numpy as np
 import pandas as pd
 from aaa_features.features import FeatureVector 
 from sklearn.preprocessing import StandardScaler
@@ -37,14 +37,14 @@ class xaapGUI(QtGui.QWidget):
 
     def __init__(self):
 
-        logger.info("Start of all this @#$. Working directory %s" %xaap_dir)
+        logger.info("Start of all the process. Working directory %s" %xaap_dir)
 
         QtGui.QWidget.__init__(self)
 
         self.setupGUI()       
-        self.xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))       
+        #self.xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))       
         self.params = self.create_parameters()
-        self.parameters_dir = Path(self.xaap_dir, 'config/xaap_parameters')
+        self.parameters_dir = Path(xaap_dir, 'config/xaap_parameters')
         if os.path.exists(self.parameters_dir):
             presets = [os.path.splitext(p)[0] for p in os.listdir(self.parameters_dir)]
             self.params.param('Load Preset..').setLimits(['']+presets)
@@ -64,9 +64,9 @@ class xaapGUI(QtGui.QWidget):
         '''Start of automatic process '''
         self.request_stream()
 
-        if self.stream == None:
+        if self.volcan_stream == None:
             logger.info("No data available")
-        elif len(self.stream[0].data)==0:
+        elif len(self.volcan_stream[0].data)==0:
             logger.info("No data available")
         else:
 
@@ -98,13 +98,22 @@ class xaapGUI(QtGui.QWidget):
                                                                  ]},
                 {'name':'Station','type':'group','children':[
                     {'name':'network','type':'str','value':'EC' },
-                    {'name':'station','type':'str','value':'BULB' },
+                    {'name':'station','type':'str','value':'BRTU' },
                     {'name':'location','type':'str','value':'' },
                     {'name':'channel','type':'str','value':'HHZ' }
                                                             ]},
+
+                {'name':'Volcan configuration', 'type':'group','children':[
+                    {'name':'volcanoes_config_file','type':'str','value':'%s' %('volcanoes.json')},
+                    {'name':'stations_config_file','type':'str','value':'%s' %('stations.json')},
+                    {'name':'volcan_name','type':'str','value':'TUNGURAHUA' }
+                                                                            ]},
+
                 {'name':'Dates','type':'group','children':[
-                    {'name':'start','type':'str','value':'%s' %(UTCDateTime.now()-86400).strftime("%Y-%m-%d %H:%M:%S") },
-                    {'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
+                    #{'name':'start','type':'str','value':'%s' %(UTCDateTime.now()-7200).strftime("%Y-%m-%d %H:%M:%S") },
+                    #{'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
+                    {'name':'start','type':'str','value':'%s' %(UTCDateTime("2012-07-05 05:00:00")) },
+                    {'name':'end','type':'str','value':'%s' %(UTCDateTime("2012-07-05 07:00:00")) }
                                                             ]},
                                                           
                 {'name':'Filter','type':'group','children':[
@@ -113,10 +122,10 @@ class xaapGUI(QtGui.QWidget):
                     {'name':'Freq_B','type':'float','value':1.0,'step':0.1,'limits': [0.1, None ]}    ]},
 
                 {'name':'STA_LTA','type':'group', 'children': [
-                    {'name':'sta','type':'float','value':5,'step':0.5,'limits': [0.1, None ]},                    
+                    {'name':'sta','type':'float','value':0.5,'step':0.5,'limits': [0.1, None ]},                    
                     {'name':'lta','type':'float','value':10,'step':0.5,'limits': [1, None ]},
-                    {'name':'trigon','type':'float','value':1.5,'step':0.5,'limits': [0.5, None ]},
-                    {'name':'trigoff','type':'float','value':0.5,'step':0.5,'limits': [0.5, None ]}
+                    {'name':'trigon','type':'float','value':3.5,'step':0.5,'limits': [0.5, None ]},
+                    {'name':'trigoff','type':'float','value':1.0,'step':0.5,'limits': [0.5, None ]}
                                                                                                   ]},
                 {'name':'GUI','type':'group','children':[
                     {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
@@ -137,31 +146,75 @@ class xaapGUI(QtGui.QWidget):
 
         try:
             mseed_client_id = self.params['Parameters','MSEED','client_id']
-            #mseed_server_config_file = "%s/config/%s" %(self.xaap_dir,self.params['Parameters','MSEED','server_config_file'])
             mseed_server_config_file = xaap_config_dir / self.params['Parameters','MSEED','server_config_file']
             mseed_server_param = gmutils.read_config_file(mseed_server_config_file)
-            
             self.mseed_client = get_mseed.choose_service(mseed_server_param[mseed_client_id])
 
         except Exception as e:
             raise Exception("Error connecting to MSEED server : %s" %str(e))
         
         try:
+            volcanoes_config_file = xaap_config_dir / self.params['Parameters', 'Volcan configuration','volcanoes_config_file']
+            volcanoes_stations = gmutils.read_config_file(volcanoes_config_file)
+
+        except Exception as e:
+            raise Exception("Error reading volcano config file : %s" %str(e))
+
+        try:
+            stations_config_file = xaap_config_dir / self.params['Parameters', 'Volcan configuration','stations_config_file']
+            stations_param = gmutils.read_config_file(stations_config_file)
+
+        except Exception as e:
+            raise Exception("Error reading volcano config file : %s" %str(e))
+
+
+        try:
+            #'''
             mseed_client_id = self.params['Parameters','MSEED','client_id']
             network = self.params['Parameters','Station','network']
             station = self.params['Parameters','Station','station']
-            print("###")
             location = self.params['Parameters','Station','location']
+
             if not location:
                 location = ''
 
             channel = self.params['Parameters','Station','channel']
+            
             start_time = UTCDateTime(self.params['Parameters','Dates', 'start'])
             end_time = UTCDateTime(self.params['Parameters','Dates', 'end'])
+            #''' 
+            volcan_name = self.params['Parameters', 'Volcan configuration','volcan_name']
+            volcan_stations = volcanoes_stations[volcan_name][volcan_name]
+            self.volcan_stations_list = []
+            
+            for temp_station in volcan_stations:
+                self.volcan_stations_list.append(stations_param[temp_station])
+
+            
+            st = Stream()
+
+            for st_ in self.volcan_stations_list:
+                for cha in st_['cha']:
+                    print(st_['net'],st_['cod'],st_['loc'][0],cha,start_time,end_time)
+                    mseed_stream=get_mseed.get_stream(mseed_client_id,self.mseed_client,st_['net'],st_['cod'],st_['loc'][0],cha,start_time=start_time,end_time=end_time)
+                    if mseed_stream:
+                        print(mseed_stream)
+                        mseed_stream.merge(method=1, fill_value="interpolate",interpolation_samples=0)
+                        st+=mseed_stream
+                    else:
+                        print("no stream")
+            print("RESULT %s" %st)
+            st.filter('highpass', freq=0.5)  # optional prefiltering
+            #st.filter('bandpass', freqmin=10, freqmax=20)  # optional prefiltering
+            self.volcan_stream = st.copy()
+            self.streams_time = self.volcan_stream[0].times(type="timestamp")
+
+            #'''
         except Exception as e:
-            raise Exception("Error request_stream was: %s" %str(e))
+            raise Exception("Error reading parameters was: %s" %str(e))
 
         try:
+
             temp_mseed = get_mseed.get_stream(mseed_client_id,self.mseed_client,network,station,location,channel,start_time=start_time,end_time=end_time)
             logger.info("request_stream() result was: %s" %temp_mseed)
             self.stream = temp_mseed
@@ -208,10 +261,40 @@ class xaapGUI(QtGui.QWidget):
         self.p1.clearPlots()
         self.p2.clearPlots()
 
+
+        try:
+            self.plot_window.clear()
+            self.plot_items_list=[]
+            n_plots = len(self.volcan_stream)
+            for i in range(n_plots):
+                datetime_axis_i = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
+
+                plot_i = self.plot_window.addPlot(row=(3+i),col=0,axisItems={'bottom': datetime_axis_i})
+                self.plot_items_list.append(plot_i)
+
+            for i,tr_t in enumerate(self.volcan_stream):
+                self.plot_items_list[i].clearPlots()
+                self.plot_items_list[i].plot(tr_t.times(type="timestamp"),tr_t.data,pen='g')
+                self.plot_items_list[i].getAxis("left").setWidth(100)
+                self.plot_items_list[i].setLabel("left",text="%s.%s.%s.%s" %(tr_t.stats['network'],tr_t.stats['station'],tr_t.stats['location'],tr_t.stats['channel']))
+
+            for j,plot_item in  enumerate(self.plot_items_list):
+                vbox_0=self.plot_items_list[0]
+                plot_item.setXLink(vbox_0)
+
+                pass
+
+        except Exception as e:
+            logger.error("Error in multiple plots was: %s" %str(e))
+
+
+        '''
         try:
 
             logger.info("Plot in p1: %s" %self.processed_stream)
             self.p1.plot(self.times,self.processed_stream[0].data,pen='g')
+            #self.p1.plot(self.streams_time,self.volcan_stream,pen='g')
+            
             logger.info("Plot in p2")
             self.p2d = self.p2.plot(self.times,self.processed_stream[0].data,pen="w")
             
@@ -225,7 +308,7 @@ class xaapGUI(QtGui.QWidget):
         except Exception as e:
 
             logger.error("Error in plot_stream() was: %s" %str(e))
-
+        '''
 
     def detect_triggers(self):
 
@@ -233,7 +316,45 @@ class xaapGUI(QtGui.QWidget):
         lta = self.params['Parameters','STA_LTA','lta']
         trigon = self.params['Parameters','STA_LTA','trigon']
         trigoff = self.params['Parameters','STA_LTA','trigoff']
+        self.triggers_traces = []
 
+        self.triggers = coincidence_trigger("recstalta", trigon, trigoff, self.volcan_stream, 2, sta=sta, lta=lta)
+        for i,t in enumerate(self.triggers):
+            print(i,t)
+        
+        triggers_on =[]
+        trigger_dot_list =[]
+        
+        for i,trigger in enumerate(self.triggers):
+            trigger_start_timestamp = trigger['time'].timestamp
+            trigger_start = trigger['time']
+            trigger_duration = trigger['duration']
+            triggers_on.append(trigger_start_timestamp)
+            trigger_dot_list.append(0)
+            
+            trigger_stream_temp=self.volcan_stream.select(id=trigger['trace_ids'][0])
+            trigger_trace = trigger_stream_temp[0].slice(trigger_start, trigger_start + trigger_duration)
+            #MINIMUM TRIGGER LENGTH
+            if trigger_trace.count() > 1:
+                self.triggers_traces.append(trigger_trace)
+
+
+        for trigger in self.triggers:
+            for trace_id in trigger['trace_ids']:
+                for plot_item in self.plot_items_list:
+                    if plot_item.getAxis("left").labelText == trace_id:
+                        trigger_trace_temp=self.volcan_stream.select(id=trace_id)
+                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger['duration'])
+                        #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
+                        plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
+
+
+
+        #self.p1.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
+        #self.p2.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
+
+
+        '''
         triggers_on = []
         scan_window_size = 600
         start_pad = 30
@@ -273,15 +394,21 @@ class xaapGUI(QtGui.QWidget):
         #print(triggers_on,trigger_dot_list)
         self.p1.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
         self.p2.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
+        '''
+
+
+
+
+
 
     def classify_triggers(self):
 
         ##leer esto desde la configuracion
         ## leer solo las mejores caracteristicas?
-        feature_config = {"features_file":"%s/config/features/features_00.json" %self.xaap_dir,
+        feature_config = {"features_file":"%s/config/features/features_00.json" %xaap_dir,
                     "domains":"time spectral cepstral"}
-        tungu_clf= pickle.load(open(os.path.join('%s/data/models' %self.xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
-        classified_triggers_file = Path(self.xaap_dir,"data/classifications") / UTCDateTime.now().strftime("out_xaap_%Y.%m.%d.%H.%M.%S.txt")
+        tungu_clf= pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
+        classified_triggers_file = Path(xaap_dir,"data/classifications") / UTCDateTime.now().strftime("out_xaap_%Y.%m.%d.%H.%M.%S.txt")
         classification_file = open(classified_triggers_file,'a+')
         #Como guardar categorias en  el modelo?
         categories = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
@@ -289,7 +416,7 @@ class xaapGUI(QtGui.QWidget):
         features = FeatureVector(feature_config, verbatim=2)
         input_data = []
 
-        trigger_dir = Path(self.xaap_dir,"trigger")
+        trigger_dir = Path(xaap_dir,"trigger")
 
         logger.info("start feature calculation")
         for trace in self.triggers_traces:
