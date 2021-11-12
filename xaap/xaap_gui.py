@@ -96,13 +96,6 @@ class xaapGUI(QtGui.QWidget):
                     {'name':'client_id','type':'list','values':['ARCLINK','SEEDLINK','ARCHIVE','FDSN']},
                     {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
                                                                  ]},
-                {'name':'Station','type':'group','children':[
-                    {'name':'network','type':'str','value':'EC' },
-                    {'name':'station','type':'str','value':'BRTU' },
-                    {'name':'location','type':'str','value':'' },
-                    {'name':'channel','type':'str','value':'HHZ' }
-                                                            ]},
-
                 {'name':'Volcan configuration', 'type':'group','children':[
                     {'name':'volcanoes_config_file','type':'str','value':'%s' %('volcanoes.json')},
                     {'name':'stations_config_file','type':'str','value':'%s' %('stations.json')},
@@ -110,10 +103,10 @@ class xaapGUI(QtGui.QWidget):
                                                                             ]},
 
                 {'name':'Dates','type':'group','children':[
-                    #{'name':'start','type':'str','value':'%s' %(UTCDateTime.now()-7200).strftime("%Y-%m-%d %H:%M:%S") },
-                    #{'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
-                    {'name':'start','type':'str','value':'%s' %(UTCDateTime("2012-07-05 05:00:00")) },
-                    {'name':'end','type':'str','value':'%s' %(UTCDateTime("2012-07-05 07:00:00")) }
+                    {'name':'start','type':'str','value':'%s 00:00:00' %(UTCDateTime.now()).strftime("%Y-%m-%d") },
+                    {'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
+                    #{'name':'start','type':'str','value':'%s' %(UTCDateTime("2012-07-05 05:00:00")) },
+                    #{'name':'end','type':'str','value':'%s' %(UTCDateTime("2012-07-05 07:00:00")) }
                                                             ]},
                                                           
                 {'name':'Filter','type':'group','children':[
@@ -125,7 +118,8 @@ class xaapGUI(QtGui.QWidget):
                     {'name':'sta','type':'float','value':0.5,'step':0.5,'limits': [0.1, None ]},                    
                     {'name':'lta','type':'float','value':10,'step':0.5,'limits': [1, None ]},
                     {'name':'trigon','type':'float','value':3.5,'step':0.5,'limits': [0.5, None ]},
-                    {'name':'trigoff','type':'float','value':1.0,'step':0.5,'limits': [0.5, None ]}
+                    {'name':'trigoff','type':'float','value':1.0,'step':0.5,'limits': [0.5, None ]},
+                    {'name':'coincidence','type':'float','value':3.0,'step':0.5,'limits': [1, None ]}
                                                                                                   ]},
                 {'name':'GUI','type':'group','children':[
                     {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
@@ -169,20 +163,9 @@ class xaapGUI(QtGui.QWidget):
 
 
         try:
-            #'''
             mseed_client_id = self.params['Parameters','MSEED','client_id']
-            network = self.params['Parameters','Station','network']
-            station = self.params['Parameters','Station','station']
-            location = self.params['Parameters','Station','location']
-
-            if not location:
-                location = ''
-
-            channel = self.params['Parameters','Station','channel']
-            
             start_time = UTCDateTime(self.params['Parameters','Dates', 'start'])
             end_time = UTCDateTime(self.params['Parameters','Dates', 'end'])
-            #''' 
             volcan_name = self.params['Parameters', 'Volcan configuration','volcan_name']
             volcan_stations = volcanoes_stations[volcan_name][volcan_name]
             self.volcan_stations_list = []
@@ -194,33 +177,26 @@ class xaapGUI(QtGui.QWidget):
             st = Stream()
 
             for st_ in self.volcan_stations_list:
-                for cha in st_['cha']:
-                    print(st_['net'],st_['cod'],st_['loc'][0],cha,start_time,end_time)
-                    mseed_stream=get_mseed.get_stream(mseed_client_id,self.mseed_client,st_['net'],st_['cod'],st_['loc'][0],cha,start_time=start_time,end_time=end_time)
-                    if mseed_stream:
-                        print(mseed_stream)
-                        mseed_stream.merge(method=1, fill_value="interpolate",interpolation_samples=0)
-                        st+=mseed_stream
-                    else:
-                        print("no stream")
-            print("RESULT %s" %st)
+                for loc in st_['loc']:
+                    if not loc:
+                        loc = ''
+                    for cha in st_['cha']:
+                        stream_id = "%s.%s.%s.%s.%s.%s" %(st_['net'],st_['cod'],st_['loc'][0],cha,start_time,end_time)
+                        mseed_stream=get_mseed.get_stream(mseed_client_id,self.mseed_client,st_['net'],st_['cod'],loc,cha,start_time=start_time,end_time=end_time)
+                        if mseed_stream:
+                            mseed_stream.merge(method=1, fill_value="interpolate",interpolation_samples=0)
+                            st+=mseed_stream
+                        else:
+                            logger.info("no stream: %s" %stream_id)
+            ##COLOCAR EN PREPROCESS Y HABILITAR MULTIPLES FILTROS
             st.filter('highpass', freq=0.5)  # optional prefiltering
             #st.filter('bandpass', freqmin=10, freqmax=20)  # optional prefiltering
             self.volcan_stream = st.copy()
-            self.streams_time = self.volcan_stream[0].times(type="timestamp")
 
-            #'''
+            
         except Exception as e:
             raise Exception("Error reading parameters was: %s" %str(e))
 
-        try:
-
-            temp_mseed = get_mseed.get_stream(mseed_client_id,self.mseed_client,network,station,location,channel,start_time=start_time,end_time=end_time)
-            logger.info("request_stream() result was: %s" %temp_mseed)
-            self.stream = temp_mseed
-
-        except Exception as e:
-            logger.error("Error in request_stream was: %s" %str(e))
 
 
     def pre_process_stream(self):
@@ -268,7 +244,6 @@ class xaapGUI(QtGui.QWidget):
             n_plots = len(self.volcan_stream)
             for i in range(n_plots):
                 datetime_axis_i = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
-
                 plot_i = self.plot_window.addPlot(row=(3+i),col=0,axisItems={'bottom': datetime_axis_i})
                 self.plot_items_list.append(plot_i)
 
@@ -278,37 +253,13 @@ class xaapGUI(QtGui.QWidget):
                 self.plot_items_list[i].getAxis("left").setWidth(100)
                 self.plot_items_list[i].setLabel("left",text="%s.%s.%s.%s" %(tr_t.stats['network'],tr_t.stats['station'],tr_t.stats['location'],tr_t.stats['channel']))
 
-            for j,plot_item in  enumerate(self.plot_items_list):
-                vbox_0=self.plot_items_list[0]
+            vbox_0=self.plot_items_list[0]
+            for plot_item in  self.plot_items_list:
                 plot_item.setXLink(vbox_0)
-
-                pass
-
+                
         except Exception as e:
             logger.error("Error in multiple plots was: %s" %str(e))
 
-
-        '''
-        try:
-
-            logger.info("Plot in p1: %s" %self.processed_stream)
-            self.p1.plot(self.times,self.processed_stream[0].data,pen='g')
-            #self.p1.plot(self.streams_time,self.volcan_stream,pen='g')
-            
-            logger.info("Plot in p2")
-            self.p2d = self.p2.plot(self.times,self.processed_stream[0].data,pen="w")
-            
-            min_region=0
-            max_region=int(len(self.times)*self.params['Parameters','GUI','zoom_region_size'])
-            self.window_region.setRegion([self.times[min_region], self.times[max_region]])
-            self.p1.setXRange(self.times[min_region], self.times[max_region])
-
-            logger.info("End plot_stream()")
-
-        except Exception as e:
-
-            logger.error("Error in plot_stream() was: %s" %str(e))
-        '''
 
     def detect_triggers(self):
 
@@ -316,11 +267,12 @@ class xaapGUI(QtGui.QWidget):
         lta = self.params['Parameters','STA_LTA','lta']
         trigon = self.params['Parameters','STA_LTA','trigon']
         trigoff = self.params['Parameters','STA_LTA','trigoff']
+        coincidence = self.params['Parameters','STA_LTA','coincidence']
         self.triggers_traces = []
 
-        self.triggers = coincidence_trigger("recstalta", trigon, trigoff, self.volcan_stream, 2, sta=sta, lta=lta)
-        for i,t in enumerate(self.triggers):
-            print(i,t)
+        self.triggers = coincidence_trigger("recstalta", trigon, trigoff, self.volcan_stream, coincidence, sta=sta, lta=lta)
+        for i,trg in enumerate(self.triggers):
+            logger.info("%s:%s.%s %s" %(i,trg['time'],trg['trace_ids'][0],trg['duration']))
         
         triggers_on =[]
         trigger_dot_list =[]
@@ -347,57 +299,6 @@ class xaapGUI(QtGui.QWidget):
                         trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger['duration'])
                         #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
                         plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
-
-
-
-        #self.p1.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
-        #self.p2.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
-
-
-        '''
-        triggers_on = []
-        scan_window_size = 600
-        start_pad = 30
-        end_pad = 30
-        sampling_rate = self.processed_stream[0].stats.sampling_rate
-        start_time = self.processed_stream[0].stats.starttime
-        end_time = self.processed_stream[0].stats.endtime
-
-        n_windows = int(np.ceil(end_time - start_time)/scan_window_size) 
-        self.triggers_traces = []
-        triggers_on = []
-        trigger_dot_list=[]
-        for i in range(n_windows):
-            window_start = start_time + scan_window_size*i - start_pad
-            window_end = start_time + scan_window_size*(i + 1) + start_pad
-            
-            temp_trace = self.processed_stream[0].slice(window_start,window_end)
-
-            cft = classic_sta_lta(temp_trace.data, int(sta * sampling_rate), int(lta * sampling_rate))
-
-            on_off=trigger_onset(cft, trigon, trigoff)
-
-            if len(on_off) != 0:
-                for time in on_off:
-                    #print(time)
-                    time_on = int(time[0]/sampling_rate)
-                    time_off = int(time[1]/sampling_rate)
-
-                    triggers_on.append((window_start + time_on).timestamp)
-                    trigger_dot_list.append(0)
-
-                    trigger_trace = temp_trace.slice(window_start + time_on, window_start + time_off)
-                    #MINIMUM TRIGGER LENGTH
-                    if trigger_trace.count() > 1:
-                        self.triggers_traces.append(trigger_trace)
-        
-        #print(triggers_on,trigger_dot_list)
-        self.p1.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
-        self.p2.plot(triggers_on,trigger_dot_list,pen=None, symbol='x')
-        '''
-
-
-
 
 
 
