@@ -103,10 +103,10 @@ class xaapGUI(QtGui.QWidget):
                                                                             ]},
 
                 {'name':'Dates','type':'group','children':[
-                    {'name':'start','type':'str','value':'%s 00:00:00' %(UTCDateTime.now()).strftime("%Y-%m-%d") },
-                    {'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
-                    #{'name':'start','type':'str','value':'%s' %(UTCDateTime("2012-07-05 05:00:00")) },
-                    #{'name':'end','type':'str','value':'%s' %(UTCDateTime("2012-07-05 07:00:00")) }
+                    #{'name':'start','type':'str','value':'%s 00:00:00' %(UTCDateTime.now()).strftime("%Y-%m-%d") },
+                    #{'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
+                    {'name':'start','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:20:00")) },
+                    {'name':'end','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:30:00")) }
                                                             ]},
                                                           
                 {'name':'Filter','type':'group','children':[
@@ -117,8 +117,8 @@ class xaapGUI(QtGui.QWidget):
                 {'name':'STA_LTA','type':'group', 'children': [
                     {'name':'sta','type':'float','value':0.5,'step':0.5,'limits': [0.1, None ]},                    
                     {'name':'lta','type':'float','value':10,'step':0.5,'limits': [1, None ]},
-                    {'name':'trigon','type':'float','value':3.5,'step':0.5,'limits': [0.5, None ]},
-                    {'name':'trigoff','type':'float','value':1.0,'step':0.5,'limits': [0.5, None ]},
+                    {'name':'trigon','type':'float','value':3.5,'step':0.1,'limits': [0.1, None ]},
+                    {'name':'trigoff','type':'float','value':1.0,'step':0.1,'limits': [0.1, None ]},
                     {'name':'coincidence','type':'float','value':3.0,'step':0.5,'limits': [1, None ]}
                                                                                                   ]},
                 {'name':'GUI','type':'group','children':[
@@ -161,6 +161,7 @@ class xaapGUI(QtGui.QWidget):
         except Exception as e:
             raise Exception("Error reading volcano config file : %s" %str(e))
 
+        
 
         try:
             mseed_client_id = self.params['Parameters','MSEED','client_id']
@@ -183,6 +184,8 @@ class xaapGUI(QtGui.QWidget):
                     for cha in st_['cha']:
                         stream_id = "%s.%s.%s.%s.%s.%s" %(st_['net'],st_['cod'],st_['loc'][0],cha,start_time,end_time)
                         mseed_stream=get_mseed.get_stream(mseed_client_id,self.mseed_client,st_['net'],st_['cod'],loc,cha,start_time=start_time,end_time=end_time)
+                        print("####")
+                        print(stream_id)
                         if mseed_stream:
                             mseed_stream.merge(method=1, fill_value="interpolate",interpolation_samples=0)
                             st+=mseed_stream
@@ -204,7 +207,8 @@ class xaapGUI(QtGui.QWidget):
         self.processed_stream = None
         logger.info("self.processed_stream cleaned :%s" %self.processed_stream)
         try:
-            self.processed_stream = self.stream.copy()
+            #self.processed_stream = self.stream.copy()
+            self.processed_stream = self.volcan_stream.copy()
             self.processed_stream.merge(method=1, fill_value="interpolate",interpolation_samples=0)
             logger.info("Stream merged: %s" %self.processed_stream)
 
@@ -225,7 +229,8 @@ class xaapGUI(QtGui.QWidget):
                 logger.info("lowpass selected")
                 temp_data = filter.lowpass(self.processed_stream[0].data,f_a,sampling_rate,4)
 
-            self.processed_stream[0].data = temp_data
+            #self.processed_stream[0].data = temp_data
+            self.volcan_stream[0].data = temp_data
 
         except Exception as e:
             logger.error("Error at pre_process_stream() was : %s" %str(e))
@@ -296,7 +301,7 @@ class xaapGUI(QtGui.QWidget):
                 for plot_item in self.plot_items_list:
                     if plot_item.getAxis("left").labelText == trace_id:
                         trigger_trace_temp=self.volcan_stream.select(id=trace_id)
-                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger['duration'])
+                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger['duration']*2.5)
                         #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
                         plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
 

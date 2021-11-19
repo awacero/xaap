@@ -28,19 +28,14 @@ logger.setLevel(logging.INFO)
 
 class xaap_check(QtGui.QWidget):
 
-
     def __init__(self):
 
         logger.info("Continuation of all this #$%&")
 
         QtGui.QWidget.__init__(self)
-
         
-        self.predictions_file = Path(xaap_dir,"data/classifications/") / "out_xaap_2021.10.29.20.38.14.txt"
         self.classifications_path = Path(xaap_dir,"data/classifications/")
-
         
-        #self.setup_model_view()
         self.setupGUI()
         self.params = self.create_parameters()
         if os.path.exists(self.classifications_path):
@@ -50,30 +45,8 @@ class xaap_check(QtGui.QWidget):
         self.tree.setParameters(self.params, showTop=True)
         self.connect_to_mseed_server()
 
-        #self.params.param('Classification file').sigValueChanged.connect(self.load_csv)
         self.table_widget.verticalHeader().sectionDoubleClicked.connect(self.get_trigger)
-
         self.params.param('Load classifications').sigActivated.connect(self.load_csv_file)
-
-
-    def load_csv(self,param,classification_file):
-        if classification_file == '':
-            return
-        cl_file_path = Path(self.classifications_path,classification_file+".txt")
-
-        try:
-            predicted_data  = pd.read_csv(cl_file_path,sep=',')
-            rows_length,column_length = predicted_data.shape
-
-            column_names = ['trigger_code','prediction']
-            predicted_data.columns = column_names
-            predicted_data['operator']=''
-            ##usar pyqtgraph metaarray para los nombres de columna
-            self.table_widget.setData(predicted_data.to_numpy())
-
-        except Exception as e:
-            raise Exception("Error reading prediction file : %s" %str(e))
-
 
 
     def connect_to_mseed_server(self):
@@ -89,19 +62,12 @@ class xaap_check(QtGui.QWidget):
             raise Exception("Error connecting to MSEED server : %s" %str(e))
         
 
-
-
     def load_csv_file(self):
 
-
         try:
-            print(self.params['Classification file'])
             classification_file_path = Path(self.classifications_path , self.params['Classification file']+'.txt')
-            print(classification_file_path)
-            #predicted_data  = pd.read_csv(self.predictions_file,sep=',')
             predicted_data  = pd.read_csv(classification_file_path,sep=',')
             rows_length,column_length = predicted_data.shape
-
             column_names = ['trigger_code','prediction']
             predicted_data.columns = column_names
             predicted_data['operator']=''
@@ -109,19 +75,13 @@ class xaap_check(QtGui.QWidget):
             self.table_widget.setData(predicted_data.to_numpy())
 
         except Exception as e:
-            raise Exception("Error reading prediction file : %s" %str(e))
+            logger.error("Error reading classification file : %s" %str(e))
+            raise Exception("Error reading classification file : %s" %str(e))
         
-    def setup_model_view(self):
-
-        self.table_widget = TableWidget(editable=True)
-        #La carga debe hacerse con un boton
-        #self.load_csv_file()
-
     
-
     def get_trigger(self):
 
-        print(self.table_widget.currentRow())
+        logger.info(self.table_widget.currentRow())
         trigger_code = self.table_widget.currentItem().text()
         net,station,location,channel,Y,m,d,H,M,S,window = trigger_code.split(".")
         if not location:
