@@ -4,7 +4,7 @@ Program to automatic classify volcanic events
 
 ``` bash
 conda config --add channels conda-forge
-conda create -n xaap python=3.7
+conda create -n xaap python=3.7.10
 conda activate xaap
 
 conda install pyqtgraph=0.12.3
