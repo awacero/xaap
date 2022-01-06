@@ -32,9 +32,9 @@ cd xaap/xaap
 python xaap_gui.py 
 ```
 
-## Train the model 
+# Train the model 
 
-# Create the feature set using SIPASS CSV data
+## Create the feature set using SIPASS CSV data
 
 ```
 conda activate xaap 
