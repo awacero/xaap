@@ -41,4 +41,4 @@ conda activate xaap
 cd xaap/xaap
 python create_feature_set.py config/profile_create_feature_guagua.txt 1 2222
 ```
-
+The features computed are stored in xaap/data/features/features_guagua_UNIQUEID.csv
