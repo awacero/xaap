@@ -4,13 +4,9 @@ Program to automatic classify volcanic events
 
 ``` bash
 conda config --add channels conda-forge
-conda create -n xaap python=3.7.10
+conda create -n xaap python=3.7.10 pyqtgraph=0.12.3 pyqt obspy=1.2.0 pandas -y
 conda activate xaap
 
-conda install pyqtgraph=0.12.3
-conda install pyqt
-conda install obspy=1.2.0
-conda install pandas
 pip install aaa_features
 pip install get_mseed_data
 conda install scikit-learn=1.0

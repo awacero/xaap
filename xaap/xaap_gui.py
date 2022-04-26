@@ -303,7 +303,7 @@ class xaapGUI(QtGui.QWidget):
                 for plot_item in self.plot_items_list:
                     if plot_item.getAxis("left").labelText == trace_id:
                         trigger_trace_temp=self.volcan_stream.select(id=trace_id)
-                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger['duration'])
+                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger_duration)
                         #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
                         plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
 
