@@ -119,7 +119,8 @@ class xaapGUI(QtGui.QWidget):
                     {'name':'lta','type':'float','value':10,'step':0.5,'limits': [1, None ]},
                     {'name':'trigon','type':'float','value':3.5,'step':0.1,'limits': [0.1, None ]},
                     {'name':'trigoff','type':'float','value':1.0,'step':0.1,'limits': [0.1, None ]},
-                    {'name':'coincidence','type':'float','value':3.0,'step':0.5,'limits': [1, None ]}
+                    {'name':'coincidence','type':'float','value':3.0,'step':0.5,'limits': [1, None ]},
+                    {'name':'endtime_extra','type':'float','value':2.5,'step':0.5,'limits': [1, None ]}
                                                                                                   ]},
                 {'name':'GUI','type':'group','children':[
                     {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
@@ -273,6 +274,7 @@ class xaapGUI(QtGui.QWidget):
         trigon = self.params['Parameters','STA_LTA','trigon']
         trigoff = self.params['Parameters','STA_LTA','trigoff']
         coincidence = self.params['Parameters','STA_LTA','coincidence']
+        endtime_extra = self.params['Parameters','STA_LTA','endtime_extra']
         self.triggers_traces = []
 
         self.triggers = coincidence_trigger("recstalta", trigon, trigoff, self.volcan_stream, coincidence, sta=sta, lta=lta)
@@ -285,7 +287,7 @@ class xaapGUI(QtGui.QWidget):
         for i,trigger in enumerate(self.triggers):
             trigger_start_timestamp = trigger['time'].timestamp
             trigger_start = trigger['time']
-            trigger_duration = trigger['duration']
+            trigger_duration = trigger['duration'] * endtime_extra
             triggers_on.append(trigger_start_timestamp)
             trigger_dot_list.append(0)
             
@@ -301,7 +303,7 @@ class xaapGUI(QtGui.QWidget):
                 for plot_item in self.plot_items_list:
                     if plot_item.getAxis("left").labelText == trace_id:
                         trigger_trace_temp=self.volcan_stream.select(id=trace_id)
-                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger['duration']*2.5)
+                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger['duration'])
                         #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
                         plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
 

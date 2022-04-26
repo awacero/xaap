@@ -9,7 +9,7 @@ conda activate xaap
 
 conda install pyqtgraph=0.12.3
 conda install pyqt
-conda install obspy
+conda install obspy=1.2.0
 conda install pandas
 pip install aaa_features
 pip install get_mseed_data
