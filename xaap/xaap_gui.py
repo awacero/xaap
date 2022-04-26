@@ -103,10 +103,10 @@ class xaapGUI(QtGui.QWidget):
                                                                             ]},
 
                 {'name':'Dates','type':'group','children':[
-                    #{'name':'start','type':'str','value':'%s 00:00:00' %(UTCDateTime.now()).strftime("%Y-%m-%d") },
-                    #{'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
-                    {'name':'start','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:20:00")) },
-                    {'name':'end','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:30:00")) }
+                    {'name':'start','type':'str','value':'%s 00:00:00' %(UTCDateTime.now()).strftime("%Y-%m-%d") },
+                    {'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
+                    #{'name':'start','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:20:00")) },
+                    #{'name':'end','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:30:00")) }
                                                             ]},
                                                           
                 {'name':'Filter','type':'group','children':[
