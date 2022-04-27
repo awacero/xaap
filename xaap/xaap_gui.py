@@ -83,7 +83,9 @@ class xaapGUI(QtGui.QWidget):
 
 
     def create_parameters(self):
-        
+
+        start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
+        end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
         xaap_parameters = Parameter.create(
             
             name='xaap configuration',type='group',children=[
@@ -93,7 +95,7 @@ class xaapGUI(QtGui.QWidget):
             {'name':'Parameters','type':'group','children':[
 
                 {'name':'MSEED','type':'group','children':[
-                    {'name':'client_id','type':'list','values':['ARCLINK','SEEDLINK','ARCHIVE','FDSN']},
+                    {'name':'client_id','type':'list','values':['FDSN','SEEDLINK','ARCHIVE','ARCLINK']},
                     {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
                                                                  ]},
                 {'name':'Volcan configuration', 'type':'group','children':[
@@ -103,8 +105,8 @@ class xaapGUI(QtGui.QWidget):
                                                                             ]},
 
                 {'name':'Dates','type':'group','children':[
-                    {'name':'start','type':'str','value':'%s 00:00:00' %(UTCDateTime.now()).strftime("%Y-%m-%d") },
-                    {'name':'end','type':'str','value':'%s' %UTCDateTime.now().strftime("%Y-%m-%d %H:%M:%S") }
+                    {'name':'start','type':'str','value':'%s' %start_datetime },
+                    {'name':'end','type':'str','value':'%s' %end_datetime }
                     #{'name':'start','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:20:00")) },
                     #{'name':'end','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:30:00")) }
                                                             ]},

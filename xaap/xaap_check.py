@@ -178,7 +178,7 @@ class xaap_check(QtGui.QWidget):
             {'name':'Parameters','type':'group','children':[
 
                 {'name':'MSEED','type':'group','children':[
-                    {'name':'client_id','type':'list','values':['ARCLINK','SEEDLINK','ARCHIVE','FDSN']},
+                    {'name':'client_id','type':'list','values':['FDSN','SEEDLINK','ARCHIVE','ARCLINK']},
                     {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
                                                                  ]},
 
