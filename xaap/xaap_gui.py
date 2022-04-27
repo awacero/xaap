@@ -62,6 +62,8 @@ class xaapGUI(QtGui.QWidget):
         self.params.param('Classify triggers').sigActivated.connect(self.classify_triggers)
 
         '''Start of automatic process '''
+        """
+
         self.request_stream()
 
         if self.volcan_stream == None:
@@ -76,7 +78,7 @@ class xaapGUI(QtGui.QWidget):
             self.detect_triggers()
             #self.classify_triggers()
             #self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
-            
+        """ 
 
 
 
@@ -95,7 +97,7 @@ class xaapGUI(QtGui.QWidget):
             {'name':'Parameters','type':'group','children':[
 
                 {'name':'MSEED','type':'group','children':[
-                    {'name':'client_id','type':'list','values':['FDSN','SEEDLINK','ARCHIVE','ARCLINK']},
+                    {'name':'client_id','type':'list','values':['ARCLINK','FDSN','SEEDLINK','ARCHIVE','ARCLINK']},
                     {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
                                                                  ]},
                 {'name':'Volcan configuration', 'type':'group','children':[

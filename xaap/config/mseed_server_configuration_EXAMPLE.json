@@ -1,0 +1,26 @@
+{
+    "ARCLINK":{
+        "name":"ARCLINK",
+        "user":"rsam",
+        "server_ip":"XXX.XXX.XXX.XXX",
+        "port":"XXXX"
+    },
+    
+    "FDSN":{
+        "name":"FDSN",
+        "server_ip":"XXX.XXX.XXX.XXX",
+        "port":"XXXX"
+        },
+    
+    "SEEDLINK":{
+        "name":"SEEDLINK",
+        "server_ip":"XXX.XXX.XXX.XXX",
+        "port":"XXXX"
+    },
+    "ARCHIVE":{
+        "name":"ARCHIVE",
+        "archive_path":"/PATH_SC3_ARCHIVE"
+    }
+
+}
+
