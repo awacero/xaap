@@ -2,6 +2,7 @@
 
 import os, sys
 from pathlib import Path
+from types import NoneType
 
 from get_mseed_data import get_mseed_utils as gmutils
 from get_mseed_data import get_mseed
@@ -111,7 +112,11 @@ class xaap_check(QtGui.QWidget):
         self.mw.draw()
 
         pad = 300
-        self.paded_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,'',channel,start_time=start_time - pad ,end_time=end_time +  pad)
+        
+        self.paded_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,location,channel,start_time=start_time - pad ,end_time=end_time +  pad)
+        
+        logger.info("Get paded stream")
+        
         self.paded_times = self.paded_stream[0].times(type='timestamp')
 
         self.paded_plot.clearPlots()
