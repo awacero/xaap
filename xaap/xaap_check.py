@@ -2,7 +2,6 @@
 
 import os, sys
 from pathlib import Path
-from types import NoneType
 
 from get_mseed_data import get_mseed_utils as gmutils
 from get_mseed_data import get_mseed

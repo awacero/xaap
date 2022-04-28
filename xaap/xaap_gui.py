@@ -255,6 +255,8 @@ class xaapGUI(QtGui.QWidget):
             for i in range(n_plots):
                 datetime_axis_i = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
                 plot_i = self.plot_window.addPlot(row=(3+i),col=0,axisItems={'bottom': datetime_axis_i})
+                view_box_i = plot_i.getViewBox()
+                view_box_i.setMouseMode(pg.ViewBox.RectMode)
                 self.plot_items_list.append(plot_i)
 
             for i,tr_t in enumerate(self.volcan_stream):
