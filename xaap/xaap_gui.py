@@ -33,6 +33,8 @@ logging.config.fileConfig(xaap_config_dir / "logging.ini" ,disable_existing_logg
 logger = logging.getLogger('stdout')
 logger.setLevel(logging.INFO)
 
+#pd.set_option('display.max_columns',None)
+pd.set_option("display.max_rows", None, "display.max_columns", None)
 class xaapGUI(QtGui.QWidget):  
 
     def __init__(self):
@@ -97,20 +99,20 @@ class xaapGUI(QtGui.QWidget):
             {'name':'Parameters','type':'group','children':[
 
                 {'name':'MSEED','type':'group','children':[
-                    {'name':'client_id','type':'list','values':['ARCLINK','FDSN','SEEDLINK','ARCHIVE','ARCLINK']},
+                    {'name':'client_id','type':'list','values':['ARCHIVE','FDSN','SEEDLINK','ARCLINK']},
                     {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
                                                                  ]},
                 {'name':'Volcan configuration', 'type':'group','children':[
                     {'name':'volcanoes_config_file','type':'str','value':'%s' %('volcanoes.json')},
                     {'name':'stations_config_file','type':'str','value':'%s' %('stations.json')},
-                    {'name':'volcan_name','type':'str','value':'TUNGURAHUA' }
+                    {'name':'volcan_name','type':'str','value':'CHILES' }
                                                                             ]},
 
                 {'name':'Dates','type':'group','children':[
-                    {'name':'start','type':'str','value':'%s' %start_datetime },
-                    {'name':'end','type':'str','value':'%s' %end_datetime }
-                    #{'name':'start','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:20:00")) },
-                    #{'name':'end','type':'str','value':'%s' %(UTCDateTime("2021-11-02 11:30:00")) }
+                    #{'name':'start','type':'str','value':'%s' %start_datetime },
+                    #{'name':'end','type':'str','value':'%s' %end_datetime }
+                    {'name':'start','type':'str','value':'%s' %(UTCDateTime("2022-08-30 16:00:00")) },
+                    {'name':'end','type':'str','value':'%s' %(UTCDateTime("2022-08-31 16:00:00")) }
                                                             ]},
                                                           
                 {'name':'Filter','type':'group','children':[
@@ -284,9 +286,14 @@ class xaapGUI(QtGui.QWidget):
         self.triggers_traces = []
 
         self.triggers = coincidence_trigger("recstalta", trigon, trigoff, self.volcan_stream, coincidence, sta=sta, lta=lta)
-        for i,trg in enumerate(self.triggers):
-            logger.info("%s:%s.%s %s" %(i,trg['time'],trg['trace_ids'][0],trg['duration']))
-        
+        #for i,trg in enumerate(self.triggers):
+        #    logger.info("%s:%s.%s %s" %(i,trg['time'],trg['trace_ids'][0],trg['duration']))
+        triggers_pd = pd.DataFrame(self.triggers)
+
+        detected_triggers_file = Path(xaap_dir,"data/detections") / UTCDateTime.now().strftime("trigger_xaap_%Y.%m.%d.%H.%M.%S.csv")
+        triggers_pd.to_csv(detected_triggers_file)
+        print(triggers_pd)
+        logger.info("Total picks detected: %s " %(len(triggers_pd.stations)))
         triggers_on =[]
         trigger_dot_list =[]
         
