@@ -36,3 +36,17 @@ cd xaap/xaap
 python create_feature_set.py config/profile_create_feature_guagua.txt 1 2222
 ```
 The features computed are stored in xaap/data/features/features_guagua_UNIQUEID.csv
+
+## Train the model 
+
+```
+conda activate xaap 
+cd xaap/xaap
+python random_forest_train_model.py config/profile_train_model_guagua.txt
+```
+
+The last command generates a PKL model in data/models folder
+```
+guagua_rf_20211007144655.pkl
+```
+
