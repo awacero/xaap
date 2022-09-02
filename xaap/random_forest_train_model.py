@@ -26,6 +26,8 @@ def main():
         unique_id = datetime.now().strftime("%Y%m%d%H%M%S")
         try:
             run_param = gmutils.read_parameters(sys.argv[1])
+            print("DDDDDDD")
+            print(run_param)
         except Exception as e:
             raise Exception("Error reading configuration file: %s" %str(e))
 

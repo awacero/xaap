@@ -327,13 +327,15 @@ class xaapGUI(QtGui.QWidget):
         ##leer esto desde la configuracion
         ## leer solo las mejores caracteristicas?
         feature_config = {"features_file":"%s/config/features/features_00.json" %xaap_dir,
-                    "domains":"time spectral cepstral"}
-        tungu_clf= pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
+                    #"domains":"time spectral cepstral"}
+                    "domains":"spectral cepstral"}
+        #tungu_clf= pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
+        volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20220902115108.pkl'),'rb'))
         classified_triggers_file = Path(xaap_dir,"data/classifications") / UTCDateTime.now().strftime("out_xaap_%Y.%m.%d.%H.%M.%S.txt")
         classification_file = open(classified_triggers_file,'a+')
         #Como guardar categorias en  el modelo?
-        categories = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
-
+        #categories = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
+        categories = ['LP', 'VT']
         features = FeatureVector(feature_config, verbatim=2)
         input_data = []
 
@@ -378,7 +380,7 @@ class xaapGUI(QtGui.QWidget):
 
         print(data_scaled.shape)
 
-        y_pred=tungu_clf.predict(data_scaled)
+        y_pred=volcano_classifier_model.predict(data_scaled)
 
         print(type(y_pred))
         print(y_pred.shape)

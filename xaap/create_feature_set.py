@@ -10,7 +10,8 @@ from datetime import datetime
 import sys
 import json
 
-
+###DETECTAR LA RED DE LA ESTACION USANDO EL ARCHIVO STATIONS.JSON 
+## CREAR LAS CARPETAS FEATURES  SI NO EXISTEN 
 def get_features(sipass_row,mseed_client_id,client,network,location,features,output_feature_file):
 
     day_month_year  = sipass_row['FECHA']
