@@ -22,6 +22,6 @@ df.insert(loc=2, column='NET', value=np.select( conditions, values))
 #df['NET'] = np.select( conditions, values)
 
 # display updated DataFrame
-print(df)
+# print(df)
 # export to csv
 df.to_csv("./data/sipass/chiles_entrenamiento2.csv",sep=';',na_rep='null')
