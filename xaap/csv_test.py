@@ -14,7 +14,7 @@ conditions = [
     (df['ESTACION'] != "LNGL"),
     (df['ESTACION'] != "CHMA"),
     ]
-# list of the values we want to assign for each condition
+# list of the values we want to assign for each condition.
 values = ['EC', 'EC', 'EC', 'EC', 'EC', 'CO', 'CO', 'CO', 'CO', 'CO']
 
 # New column
