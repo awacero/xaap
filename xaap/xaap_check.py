@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import os, sys
+import symbol
 from pathlib import Path
 
 from get_mseed_data import get_mseed_utils as gmutils
 from get_mseed_data import get_mseed
+import numpy as np
 
 
 import pyqtgraph as pg
@@ -20,6 +22,8 @@ from PyQt5.QtGui import QKeySequence
 from obspy import UTCDateTime
 import pandas as pd
 import logging, logging.config
+
+from sqlalchemy import null
 
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
@@ -79,30 +83,75 @@ class xaap_check(QtGui.QWidget):
             """
             George Code
             """
-            # print("PRUEBAS CON DF")
-            # print(predicted_data['trigger_code'])
+            print("PRUEBAS CON DF")
+            #print(predicted_data)
             # print("DF predicted_data")
             predicted_data[['Network', 'Station', '','Component','year','month','day','h','m','s','coda']] = \
                 predicted_data['trigger_code'].str.split('.', expand=True)
-            split_data_df = predicted_data['trigger_code'].str.split('.', expand=True)
 
-            predicted_data["Time"] = predicted_data['h'] +":"+ predicted_data["m"] +":"+ predicted_data["s"]
-            #print(predicted_data)
+            predicted_data["Hora"] = predicted_data['h'] +":"+ predicted_data["m"] +":"+ predicted_data["s"]
+            predicted_data["Fecha"] = predicted_data['day'] + "/" + predicted_data['month'] + "/" + predicted_data['year']
+            #print(predicted_data['trigger_code'])
+            # Amp
+            """
+            trigger_code = predicted_data['trigger_code']
+            print("Trigg asig:",trigger_code)
+            net,station,location,channel,Y,m,d,H,M,S,window = predicted_data['trigger_code'].str.split(".")
+            print(net,station,location,channel,Y,m,d,H,M,S,window)
+            if not location:
+                location = ''
+            start_time=UTCDateTime("%s-%s-%sT%s:%s:%s"%(Y,m,d,H,M,S))
+            window = int(window)
+            end_time = start_time + window
+            """
+            """
+            trigger_code = predicted_data['trigger_code']
+            print(trigger_code)
+            #net,station,location,channel,Y,m,d,H,M,S,window = trigger_code.split(".")
+            #if predicted_data['Location'] == null:
+            #    predicted_data['Location'] = ''
+            # start_time=UTCDateTime("%s-%s-%sT%s:%s:%s"%(Y,m,d,H,M,S))
+            start_time=UTCDateTime("%s-%s-%sT%s:%s:%s"%(predicted_data['year'],predicted_data['month'],predicted_data['day'],predicted_data['h'],predicted_data['m'],predicted_data['s']))
+            predicted_data['coda'] = int(predicted_data['coda'])
+            end_time = start_time + predicted_data['coda']
+            self.trigger_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,predicted_data['Network'],predicted_data['Station'],predicted_data['Location'],predicted_data['Component'],start_time=start_time,window_size=predicted_data['coda'])
+            """
+            """
+            # Máximo y mínimo trigger_stream
+            self.trigger_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,location,channel,start_time=start_time,window_size=window)
+            #print(max(self.trigger_stream[0].data))
+            max = max(self.trigger_stream[0].data)
+            min = min(self.trigger_stream[0].data)
+            amp_trigger_stream = self.max - self.min
+            # Localizar el máximo y mínimo
+            self.max_loc = self.trigger_stream[0].data.index(max(self.trigger_stream[0].data))
+            self.min_loc = self.trigger_stream[0].data.index(min(self.trigger_stream[0].data))
+            predicted_data["Amp"] = amp_trigger_stream
+            """
 
-            """"""
             ##usar pyqtgraph metaarray para los nombres de columna
             self.table_widget.setColumnCount(6)
-            self.table_widget.appendData(predicted_data[['trigger_code','Station','Component','prediction','Network','coda','year','Time','','']].to_numpy())
-            self.table_widget.setHorizontalHeaderLabels(str("Trigger code;Station;Component;Prediction;Network;Coda;Year;Time;Frecuency;").split(";"))
+            self.table_widget.setFont(QtGui.QFont('Helvetica', 10))
+            #self.table_widget.appendData(predicted_data[['trigger_code','Station','Component','prediction','Network','coda','year','Time','','']].to_numpy())
+            self.table_widget.appendData(predicted_data[['trigger_code','','','Station','Network','Component','Fecha','Hora','prediction','','coda','','','','','']].to_numpy())
+            self.table_widget.setHorizontalHeaderLabels(str("Trigger code;Cod Registro;Volcan;Estación;"+
+                                                            "Net;Componente;Fecha;Hora;Tipo;S-P;Coda;Amp-Cuentas;T;f;RMS;;").split(";"))
             self.table_widget.setColumnWidth(0, 0)
             self.table_widget.setColumnWidth(1, 100)
-            self.table_widget.setColumnWidth(2, 100)
-            self.table_widget.setColumnWidth(3, 100)
-            self.table_widget.setColumnWidth(4, 75)
+            self.table_widget.setColumnWidth(2, 70)
+            self.table_widget.setColumnWidth(3, 70)
+            self.table_widget.setColumnWidth(4, 40)
             self.table_widget.setColumnWidth(5, 100)
-            self.table_widget.setColumnWidth(6, 100)
-            self.table_widget.setColumnWidth(7, 100)
-            self.table_widget.setColumnWidth(8, 100)
+            self.table_widget.setColumnWidth(6, 80)
+            self.table_widget.setColumnWidth(7, 65)
+            self.table_widget.setColumnWidth(8, 65)
+            self.table_widget.setColumnWidth(9, 40)
+            self.table_widget.setColumnWidth(10, 50)
+            self.table_widget.setColumnWidth(11, 110)
+            self.table_widget.setColumnWidth(12, 50)
+            self.table_widget.setColumnWidth(13, 50)
+            self.table_widget.setColumnWidth(14, 50)
+            self.table_widget.setColumnWidth(15, 50)
             
 
             # create a button column
@@ -110,7 +159,7 @@ class xaap_check(QtGui.QWidget):
                 btn = QPushButton(self.table_widget)
                 btn.setText('Ver')
                 btn.clicked.connect(self.get_trigger)
-                self.table_widget.setCellWidget(index, 9, btn)
+                self.table_widget.setCellWidget(index, 15, btn)
 
 
         except Exception as e:
@@ -130,14 +179,45 @@ class xaap_check(QtGui.QWidget):
         window = int(window)
         end_time = start_time + window
 
+        
         print(net,station,start_time)
         #poner try, llamar a preprocesar, usar informacion de filtros en parametros, agregar pads?
         self.trigger_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,location,channel,start_time=start_time,window_size=window)
         self.trigger_times = self.trigger_stream[0].times(type='timestamp')
-        print(self.trigger_stream)
+        #print("Next text:")
+        #print(max(self.trigger_stream[0].data))
+
+        # Normalización a 0 de la gráfica superior
+        self.trigger_stream[0].data = np.array([x - self.trigger_stream[0].data[0] for x in self.trigger_stream[0].data])
+        print(self.trigger_stream[0].data)
+        """
+        GEORGE code
+        """
+        print("Datos trigger")
+        # Máximo y mínimo trigger_stream
+        # self.trigger_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,location,channel,start_time=start_time,window_size=window)
+        # print(max(self.trigger_stream[0].data))
+        max_trigger_strm = [float(max(self.trigger_stream[0].data))]
+        min_trigger_strm = [min(self.trigger_stream[0].data)]
+        #amp_trigger_stream = max_trigger_strm - min_trigger_strm
+        #print("Amp: ",amp_trigger_stream)
+        print(np.where(self.trigger_stream[0].data==max_trigger_strm))
+        #
+        # Localizar el máximo y mínimo
+        max_loc = np.where(self.trigger_stream[0].data==max_trigger_strm)
+        min_loc = np.where(self.trigger_stream[0].data==min_trigger_strm)
+        #print("Loc:",max_loc,min_loc)
+        #print("Times: ",int(self.trigger_times[max_loc]))
+        #predicted_data["Amp"] = amp_trigger_stream
+        #time = [float(self.trigger_times[max_loc])]
+        #max_p = [max_trigger_strm]
+        #t = [time]
 
         self.trigger_plot.clearPlots()
         self.plot_b.clearPlots()
+        self.plot_b.showGrid(x=True, y=True)
+        self.trigger_plot.showGrid(x=True, y=True)
+        self.trigger_plot.plot([float(self.trigger_times[max_loc])],max_trigger_strm, symbol = '+')
         self.trigger_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='g')
         self.plot_b_spectro = self.plot_b.plot(self.trigger_times,self.trigger_stream[0].data, pen='r')
         self.plot_b_spectro.setFftMode(True)
@@ -156,14 +236,17 @@ class xaap_check(QtGui.QWidget):
         self.paded_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,location,channel,start_time=start_time - pad ,end_time=end_time +  pad)
         
         logger.info("Get paded stream")
-        
+        print("paded stram:\n",self.paded_stream[0].data)
+        # Normalización a 0 de la gráfica inferior
+        self.paded_stream[0].data = np.array([x - self.paded_stream[0].data[0] for x in self.paded_stream[0].data])
         self.paded_times = self.paded_stream[0].times(type='timestamp')
 
         self.paded_plot.clearPlots()
+        self.paded_plot.showGrid(x=True, y=True)
         self.paded_plot.plot(self.paded_times,self.paded_stream[0].data,pen='w')
         self.paded_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='r')
 
-
+    
     def setupGUI(self):
 
         self.layout = QtGui.QVBoxLayout()
@@ -182,6 +265,7 @@ class xaap_check(QtGui.QWidget):
         self.quitSc.activated.connect(self.get_trigger)
 
         self.table_widget = TableWidget(editable=True)
+        
         
         #self.table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
@@ -234,7 +318,7 @@ class xaap_check(QtGui.QWidget):
         self.splitter_horizontal.addWidget(self.splitter_vertical)
         self.splitter_horizontal.addWidget(self.splitter_vertical_side)
         
-        self.splitter_horizontal.setSizes([300,600,200])
+        self.splitter_horizontal.setSizes([275,625,200])
         self.splitter_vertical.setSizes([600,200])
         self.layout.addWidget(self.splitter_horizontal)
     
@@ -279,7 +363,8 @@ if __name__ == '__main__':
 
     win = xaap_check()
     win.setWindowTitle("xaap_check")
-    win.show()
+    #win.show()
+    win.showMaximized()
     win.resize(1100,700)
 
     pg.exec()
