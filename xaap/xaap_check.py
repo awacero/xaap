@@ -59,29 +59,28 @@ class xaap_check(QtGui.QWidget):
                                                         "Net;Componente;Fecha;Hora;"+
                                                         "Tipo;S-P;Coda;Amp-Cuentas;"+
                                                         "T;f;RMS;;").split(";"))
-        self.table_widget.setColumnWidth(0, 0)
-        self.table_widget.setColumnWidth(1, 100)
-        self.table_widget.setColumnWidth(2, 70)
-        self.table_widget.setColumnWidth(3, 70)
-        self.table_widget.setColumnWidth(4, 40)
-        self.table_widget.setColumnWidth(5, 100)
-        self.table_widget.setColumnWidth(6, 80)
-        self.table_widget.setColumnWidth(7, 65)
-        self.table_widget.setColumnWidth(8, 65)
-        self.table_widget.setColumnWidth(9, 40)
-        self.table_widget.setColumnWidth(10, 50)
-        self.table_widget.setColumnWidth(11, 110)
-        self.table_widget.setColumnWidth(12, 50)
-        self.table_widget.setColumnWidth(13, 50)
-        self.table_widget.setColumnWidth(14, 50)
-        self.table_widget.setColumnWidth(15, 50)
+        self.table_widget.setColumnWidth(0, 0) # Trigger code
+        self.table_widget.setColumnWidth(1, 100) # Cod Registro
+        self.table_widget.setColumnWidth(2, 70) # Volcan
+        self.table_widget.setColumnWidth(3, 70) # Estación
+        self.table_widget.setColumnWidth(4, 40) # Net
+        self.table_widget.setColumnWidth(5, 100) # Componente
+        self.table_widget.setColumnWidth(6, 80) # Fecha
+        self.table_widget.setColumnWidth(7, 65) # Hora
+        self.table_widget.setColumnWidth(8, 65) # Tipo
+        self.table_widget.setColumnWidth(9, 40) # S-P
+        self.table_widget.setColumnWidth(10, 50) # Coda
+        self.table_widget.setColumnWidth(11, 110) # Amp-Cuentas
+        self.table_widget.setColumnWidth(12, 50) # T
+        self.table_widget.setColumnWidth(13, 50) # f
+        self.table_widget.setColumnWidth(14, 50) # RMS
+        self.table_widget.setColumnWidth(15, 50) # Botón
 
         # create a button column
         for index in range(self.table_widget.rowCount()):
             btn = QPushButton(self.table_widget)
             btn.setText('Ver')
             btn.setStyleSheet("background-color: blue; color: white")
-            #self.pushButton.setStyleSheet("background-color: red")
             btn.clicked.connect(self.get_plots)
             self.table_widget.setCellWidget(index, 15, btn)
 
@@ -92,33 +91,37 @@ class xaap_check(QtGui.QWidget):
         trigger_code = self.table_widget.item(self.table_widget.currentRow(), 0).text()
         
         self.trigger_times, self.paded_stream, self.trigger_stream,\
-        self.paded_times = bk_check.get_trigger(self, trigger_code)
-        # Max and min trigger_stream
-        max_trigger_strm = [float(max(self.trigger_stream[0].data))]
-        min_trigger_strm = [float(min(self.trigger_stream[0].data))]
-        # Localizar el máximo y mínimo
-        max_loc = np.where(self.trigger_stream[0].data==max_trigger_strm)
-        min_loc = np.where(self.trigger_stream[0].data==min_trigger_strm)
-        #predicted_data["Amp"] = amp_trigger_stream
+        self.paded_times, max_trigger, min_trigger,  amp_max, max_loc,\
+            min_loc, rms = bk_check.get_trigger(self, trigger_code)
+
+
+        #########################
+        # Add data to selected row in table widget
+        self.table_widget.item(self.table_widget.currentRow(), 11).setText(str(amp_max))
+        self.table_widget.item(self.table_widget.currentRow(), 14).setText(str(rms))
+
+        #########################
 
         self.trigger_plot.clearPlots()
         self.plot_b.clearPlots()
         self.plot_b.showGrid(x=True, y=True)
         self.trigger_plot.showGrid(x=True, y=True)
         self.trigger_plot.plot([float(self.trigger_times[max_loc])],\
-            max_trigger_strm, symbol = '+')
+            [max_trigger], symbol = '+')
         self.trigger_plot.plot([float(self.trigger_times[min_loc])],\
-            min_trigger_strm, symbol = '+')
+            [min_trigger], symbol = '+')
         self.trigger_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='g')
         self.plot_b_spectro = self.plot_b.plot(self.trigger_times,\
                                                self.trigger_stream[0].data, pen='r')
         self.plot_b_spectro.setFftMode(True)
         self.paded_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='r')
-        
+
         self.mw_fig = self.mw.getFigure()
         #self.mw_fig.clf()
         self.mw_axes = self.mw_fig.add_subplot(111)
         sampling_rate = self.trigger_stream[0].stats.sampling_rate
+        #print("Sampling rate:", sampling_rate)
+        
         # self.trigger_stream.spectrogram(samp_rate=sampling_rate,\
         # cmap=plt.cm.jet,log=False,axes=self.mw_axes)
         self.trigger_stream.spectrogram(wlen=2*sampling_rate,\
@@ -130,13 +133,13 @@ class xaap_check(QtGui.QWidget):
         self.paded_plot.showGrid(x=True, y=True)
         self.paded_plot.plot(self.paded_times,self.paded_stream[0].data,pen='w')
         self.paded_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='r')
-    
+
+
     def clearAllPlots(self):
         self.paded_plot.clearPlots()
         self.trigger_plot.clearPlots()
         self.plot_b.clearPlots()
-        #self.plot_b_spectro.clearPlots()
-        #self.clearPlots()
+
 
     def setupGUI(self):
 
@@ -205,16 +208,16 @@ class xaap_check(QtGui.QWidget):
         self.splitter_horizontal.addWidget(self.tree)
         self.splitter_horizontal.addWidget(self.splitter_vertical)
         self.splitter_horizontal.addWidget(self.splitter_vertical_side)
-        
+
         self.splitter_horizontal.setSizes([265,635,200])
         self.splitter_vertical.setSizes([600,200])
         self.layout.addWidget(self.splitter_horizontal)
-    
+
 
     def create_parameters(self):
-        
+
         xaap_parameters = Parameter.create(
-            
+
             name='xaap configuration',type='group',children=[
 
             {'name':'Classification file','type':'list','limits':[]},
@@ -233,10 +236,10 @@ class xaap_check(QtGui.QWidget):
                                                             ]},
                                                           ]},
             {'name':'Load classifications','type':'action'},
-            {'name':'Save triggers','type':'action'}                
+            {'name':'Save triggers','type':'action'}
                                                                          ]
                                                                          )
-        bk_check.logger.info("End of set parameters") 
+        bk_check.logger.info("End of set parameters")
         return xaap_parameters
 
 
