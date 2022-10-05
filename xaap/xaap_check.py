@@ -8,6 +8,7 @@ from pyqtgraph.Qt import QtGui, QtCore
 from pyqtgraph import TableWidget
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import matplotlib.pyplot as plt
+#from mpl_axes_aligner import align
 
 from PyQt5.QtWidgets import QHeaderView , QPushButton, QShortcut, QApplication
 from PyQt5.QtGui import QKeySequence
@@ -37,9 +38,11 @@ class xaap_check(QtGui.QWidget):
         self.tree.setParameters(self.params, showTop=True)
         bk_check.connect_to_mseed_server(self)
 
-        self.table_widget.verticalHeader().sectionDoubleClicked.connect(self.get_plots)
+        self.table_widget.verticalHeader().\
+            sectionDoubleClicked.connect(self.get_plots)
         self.table_widget.verticalHeader().sectionClicked.connect(self.get_plots)
-        self.params.param('Load classifications').sigActivated.connect(self.load_data_to_tbl_widget)
+        self.params.param('Load classifications').\
+            sigActivated.connect(self.load_data_to_tbl_widget)
         
 
     def load_data_to_tbl_widget(self):
@@ -47,9 +50,15 @@ class xaap_check(QtGui.QWidget):
         predicted_data = bk_check.load_csv_file(self)
         self.table_widget.setColumnCount(6)
         self.table_widget.setFont(QtGui.QFont('Helvetica', 10))
-        self.table_widget.appendData(predicted_data[['trigger_code','','','Station','Network','Component','Fecha','Hora','prediction','','coda','','','','','']].to_numpy())
-        self.table_widget.setHorizontalHeaderLabels(str("Trigger code;Cod Registro;Volcan;Estación;"+
-                                                        "Net;Componente;Fecha;Hora;Tipo;S-P;Coda;Amp-Cuentas;T;f;RMS;;").split(";"))
+        self.table_widget.appendData(predicted_data[['trigger_code','','',
+                                     'Station','Network','Component','Fecha',
+                                     'Hora','prediction','','coda','','','',
+                                     '','']].to_numpy())
+        self.table_widget.setHorizontalHeaderLabels(str("Trigger code;Cod Registro;"+
+                                                        "Volcan;Estación;"+
+                                                        "Net;Componente;Fecha;Hora;"+
+                                                        "Tipo;S-P;Coda;Amp-Cuentas;"+
+                                                        "T;f;RMS;;").split(";"))
         self.table_widget.setColumnWidth(0, 0)
         self.table_widget.setColumnWidth(1, 100)
         self.table_widget.setColumnWidth(2, 70)
@@ -71,6 +80,8 @@ class xaap_check(QtGui.QWidget):
         for index in range(self.table_widget.rowCount()):
             btn = QPushButton(self.table_widget)
             btn.setText('Ver')
+            btn.setStyleSheet("background-color: blue; color: white")
+            #self.pushButton.setStyleSheet("background-color: red")
             btn.clicked.connect(self.get_plots)
             self.table_widget.setCellWidget(index, 15, btn)
 
@@ -80,7 +91,8 @@ class xaap_check(QtGui.QWidget):
         bk_check.logger.info(self.table_widget.currentRow())
         trigger_code = self.table_widget.item(self.table_widget.currentRow(), 0).text()
         
-        self.trigger_times, self.paded_stream, self.trigger_stream, self.paded_times = bk_check.get_trigger(self, trigger_code)
+        self.trigger_times, self.paded_stream, self.trigger_stream,\
+        self.paded_times = bk_check.get_trigger(self, trigger_code)
         # Max and min trigger_stream
         max_trigger_strm = [float(max(self.trigger_stream[0].data))]
         min_trigger_strm = [float(min(self.trigger_stream[0].data))]
@@ -93,18 +105,25 @@ class xaap_check(QtGui.QWidget):
         self.plot_b.clearPlots()
         self.plot_b.showGrid(x=True, y=True)
         self.trigger_plot.showGrid(x=True, y=True)
-        self.trigger_plot.plot([float(self.trigger_times[max_loc])],max_trigger_strm, symbol = '+')
-        self.trigger_plot.plot([float(self.trigger_times[min_loc])],min_trigger_strm, symbol = '+')
+        self.trigger_plot.plot([float(self.trigger_times[max_loc])],\
+            max_trigger_strm, symbol = '+')
+        self.trigger_plot.plot([float(self.trigger_times[min_loc])],\
+            min_trigger_strm, symbol = '+')
         self.trigger_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='g')
-        self.plot_b_spectro = self.plot_b.plot(self.trigger_times,self.trigger_stream[0].data, pen='r')
+        self.plot_b_spectro = self.plot_b.plot(self.trigger_times,\
+                                               self.trigger_stream[0].data, pen='r')
         self.plot_b_spectro.setFftMode(True)
-
+        self.paded_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='r')
+        
         self.mw_fig = self.mw.getFigure()
         #self.mw_fig.clf()
         self.mw_axes = self.mw_fig.add_subplot(111)
         sampling_rate = self.trigger_stream[0].stats.sampling_rate
-        #self.trigger_stream.spectrogram(samp_rate=sampling_rate,cmap=plt.cm.jet,log=False,axes=self.mw_axes)
-        self.trigger_stream.spectrogram(wlen=2*sampling_rate, per_lap=0.95,dbscale=True,log=False,axes=self.mw_axes,cmap=plt.cm.jet)
+        # self.trigger_stream.spectrogram(samp_rate=sampling_rate,\
+        # cmap=plt.cm.jet,log=False,axes=self.mw_axes)
+        self.trigger_stream.spectrogram(wlen=2*sampling_rate,\
+                                        per_lap=0.95,dbscale=True,\
+                                        log=False,axes=self.mw_axes,cmap=plt.cm.jet)
         self.mw.draw()
 
         self.paded_plot.clearPlots()
@@ -112,6 +131,13 @@ class xaap_check(QtGui.QWidget):
         self.paded_plot.plot(self.paded_times,self.paded_stream[0].data,pen='w')
         self.paded_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='r')
     
+    def clearAllPlots(self):
+        self.paded_plot.clearPlots()
+        self.trigger_plot.clearPlots()
+        self.plot_b.clearPlots()
+        #self.plot_b_spectro.clearPlots()
+        #self.clearPlots()
+
     def setupGUI(self):
 
         self.layout = QtGui.QVBoxLayout()
@@ -128,18 +154,15 @@ class xaap_check(QtGui.QWidget):
         # Graph selected row
         self.quitSc = QShortcut(QKeySequence('Ctrl+G'), self)
         self.quitSc.activated.connect(self.get_plots)
+        # Clear plots
+        self.quitSc = QShortcut(QKeySequence('Ctrl+C'), self)
+        self.quitSc.activated.connect(self.clearAllPlots)
 
         self.table_widget = TableWidget(editable=True)
-        
-        
-        #self.table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
         # Uncomment next line if want to fill all space of the table widget
         #self.table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-        #self.table_widget.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        
-        #self.table_widget.horizontalHeaderItem().setTextAlignment(QtCore.AlignHCenter)
         self.tree =  ParameterTree()
         self.datetime_axis_1 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
         self.datetime_axis_2 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
@@ -183,7 +206,7 @@ class xaap_check(QtGui.QWidget):
         self.splitter_horizontal.addWidget(self.splitter_vertical)
         self.splitter_horizontal.addWidget(self.splitter_vertical_side)
         
-        self.splitter_horizontal.setSizes([275,625,200])
+        self.splitter_horizontal.setSizes([265,635,200])
         self.splitter_vertical.setSizes([600,200])
         self.layout.addWidget(self.splitter_horizontal)
     
@@ -198,17 +221,20 @@ class xaap_check(QtGui.QWidget):
             {'name':'Parameters','type':'group','children':[
 
                 {'name':'MSEED','type':'group','children':[
-                    {'name':'client_id','type':'list','values':['FDSN','SEEDLINK','ARCHIVE','ARCLINK']},
-                    {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
+                    {'name':'client_id','type':'list',\
+                        'values':['FDSN','SEEDLINK','ARCHIVE','ARCLINK']},
+                    {'name':'server_config_file','type':'str',\
+                        'value':'%s' %('server_configuration.json')}
                                                                  ]},
 
                 {'name':'GUI','type':'group','children':[
-                    {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
+                    {'name':'zoom_region_size','type':'float',\
+                        'value':0.10,'step':0.05,'limits':[0.01,1] }
                                                             ]},
                                                           ]},
             {'name':'Load classifications','type':'action'},
             {'name':'Save triggers','type':'action'}                
-                                                                         ]                                                                         
+                                                                         ]
                                                                          )
         bk_check.logger.info("End of set parameters") 
         return xaap_parameters
@@ -224,11 +250,10 @@ if __name__ == '__main__':
     QWidget {font-size: 15px}
     QMenu {font-size: 10px}
     QMenu QWidget {font-size: 10px}
-""")
+    """)
 
     win = xaap_check()
     win.setWindowTitle("xaap_check")
-    #win.show()
     win.showMaximized()
     win.resize(1100,700)
 
