@@ -98,5 +98,22 @@ def get_trigger(self,trigger_code):
 
         self.paded_times = self.paded_stream[0].times(type='timestamp')
 
+        # Data about selected row
+        # Max and min amplitude in trigger_stream
+        max_trigger = float(max(self.trigger_stream[0].data))
+        min_trigger = float(min(self.trigger_stream[0].data))
+        amp_max = abs(max_trigger)+abs(min_trigger)
+        # Localizar el máximo y mínimo
+        max_loc = np.where(self.trigger_stream[0].data==max_trigger)
+        min_loc = np.where(self.trigger_stream[0].data==min_trigger)
+        # RMS
+        #print("RMS:",np.std(self.trigger_stream[0].data))
+        rms = np.sqrt(np.mean(self.trigger_stream[0].data.size**2))
+
+        # T
+        #T = [x for x in self.trigger_stream[0].data if (x >max_trigger and x<0)]
+        #print(T)
+
         return self.trigger_times, self.paded_stream,\
-               self.trigger_stream, self.paded_times
+               self.trigger_stream, self.paded_times,\
+               max_trigger, min_trigger, amp_max, max_loc, min_loc, rms
