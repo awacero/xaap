@@ -11,6 +11,8 @@ from obspy import UTCDateTime
 import pandas as pd
 import logging, logging.config
 
+#from mpl_axes_aligner import align
+
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
 logging.config.fileConfig(xaap_config_dir / "logging.ini" ,disable_existing_loggers=False)
@@ -34,19 +36,25 @@ def connect_to_mseed_server(self):
 def load_csv_file(self):
 
         try:
-            classification_file_path = Path(self.classifications_path , self.params['Classification file']+'.txt')
+            classification_file_path = Path(self.classifications_path ,\
+                                            self.params['Classification file']+
+                                            '.txt')
             predicted_data  = pd.read_csv(classification_file_path,sep=',')
             rows_length,column_length = predicted_data.shape
             column_names = ['trigger_code','prediction']
             predicted_data.columns = column_names
             predicted_data['operator'] = ''
-            predicted_data[['Network', 'Station', '','Component','year','month','day','h','m','s','coda']] = \
+            predicted_data[['Network', 'Station', '','Component','year',\
+                            'month','day','h','m','s','coda']] = \
                 predicted_data['trigger_code'].str.split('.', expand=True)
-            predicted_data["Hora"] = predicted_data['h'] +":"+ predicted_data["m"] +":"+ predicted_data["s"]
-            predicted_data["Fecha"] = predicted_data['day'] + "/" + predicted_data['month'] + "/" + predicted_data['year']
+            predicted_data["Hora"] = predicted_data['h'] +":"\
+                                     + predicted_data["m"] +":"\
+                                     + predicted_data["s"]
+            predicted_data["Fecha"] = predicted_data['day']\
+                                      + "/" + predicted_data['month']\
+                                      + "/" + predicted_data['year']
 
             return predicted_data
-
 
         except Exception as e:
             logger.error("Error reading classification file : %s" %str(e))
@@ -61,20 +69,34 @@ def get_trigger(self,trigger_code):
         window = int(window)
         end_time = start_time + window
 
-        #poner try, llamar a preprocesar, usar informacion de filtros en parametros, agregar pads?
-        self.trigger_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,location,channel,start_time=start_time,window_size=window)
+        # poner try, llamar a preprocesar, usar informacion de filtros en
+        # parametros, agregar pads?
+        self.trigger_stream =\
+            get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,\
+                                 station,location,channel,start_time=start_time,\
+                                 window_size=window)
         self.trigger_times = self.trigger_stream[0].times(type='timestamp')
 
         # Normalización a 0 de la gráfica superior
-        self.trigger_stream[0].data = np.array([x - self.trigger_stream[0].data[0] for x in self.trigger_stream[0].data])
+        self.trigger_stream[0].data =\
+            np.array([x - np.mean(self.trigger_stream[0].data)\
+            for x in self.trigger_stream[0].data])
 
         pad = 300
         
-        self.paded_stream = get_mseed.get_stream(self.mseed_client_id,self.mseed_client,net,station,location,channel,start_time=start_time - pad ,end_time=end_time +  pad)
-        
+        self.paded_stream =\
+            get_mseed.get_stream(self.mseed_client_id,self.mseed_client,\
+                                 net,station,location,channel,\
+                                 start_time=start_time - pad ,\
+                                 end_time=end_time +  pad)
+
         logger.info("Get paded stream")
         # Normalización a 0 de la gráfica inferior
-        self.paded_stream[0].data = np.array([x - self.paded_stream[0].data[0] for x in self.paded_stream[0].data])
+        self.paded_stream[0].data =\
+            np.array([x - np.mean(self.paded_stream[0].data)\
+            for x in self.paded_stream[0].data])
+
         self.paded_times = self.paded_stream[0].times(type='timestamp')
 
-        return self.trigger_times, self.paded_stream, self.trigger_stream, self.paded_times
+        return self.trigger_times, self.paded_stream,\
+               self.trigger_stream, self.paded_times
