@@ -1,0 +1,32 @@
+{
+"filter_0":{
+    "name":"rms",
+    "type":"None",
+    "frequency_1":"None",
+    "frequency_2":"None",
+    "order":"None"
+            },
+            
+"filter_1":{
+    "name":"rsam_banda1",
+    "type":"bandpass",
+    "frequency_1":"0.05",
+    "frequency_2":"0.125"
+            },
+"filter_2":{
+    "name":"rsam_banda2",
+    "type":"bandpass",
+    "frequency_1":"2",
+    "frequency_2":"8"
+            },
+            
+"filter_4":{
+    "name":"rsam_banda4",
+    "type":"highpass",
+    "frequency_1":"10.0",
+    "frequency_2":"None",
+    "order":"1",
+    "zerophase":"True"
+            }
+
+}

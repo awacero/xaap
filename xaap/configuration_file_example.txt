@@ -1,0 +1,17 @@
+[DATABASE]
+id=PRO
+file_path=./config/db_configuration.json
+mode=INSERT
+
+[MSEED_SERVER]
+id=ARCHIVE
+file_path=./config/server_configuration.json
+
+[STATION_FILE]
+file_path=./config/stations_test.json
+
+[LOG_FILE]
+log_file_name=rsam_devel.log
+
+[FILTER_FILE]
+file_path=./config/filters.json
