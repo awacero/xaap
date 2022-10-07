@@ -67,6 +67,12 @@ def main():
             logger.error("Failed to read filters file %s" %str(e))
             raise Exception("Failed to read filters file %s" %str(e))
 
+
+    if is_error:
+        print(f'Usage: python {sys.argv[0]} CONFIGURATION_FILE.txt ')  
+
+
+
 def create_filter_list(filters_dict):
         """Create a rsam_filter object from a json file"""
         
@@ -75,9 +81,14 @@ def create_filter_list(filters_dict):
             xaap_filter = XaapFilter(**filter)
             filter_list.append(xaap_filter)
             
-        
+        print(filter_list)
         return filter_list
 
+def create_trigger_list(trigger_dict):
+    """"""
+
+    trigger_list = []
+    for 
 
 
 if __name__ == '__main__':
