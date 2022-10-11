@@ -27,9 +27,13 @@ import logging, logging.config
         
 # Librerias para CLI implementation
 from models.xaap_filter import XaapFilter
+from models.xaap_sta_lta import StaLta
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
+print("###")
+#print(xaap_config_dir)
+print(sys.argv)
 logging.config.fileConfig(xaap_config_dir / "logging.ini" ,disable_existing_loggers=False)
 logger = logging.getLogger('stdout')
 logger.setLevel(logging.INFO)
@@ -88,7 +92,12 @@ def create_trigger_list(trigger_dict):
     """"""
 
     trigger_list = []
-    for 
+    for trigger_key,trigger in trigger_dict.items():
+        xaap_trigger = StaLta(**trigger)
+        trigger_list.append(xaap_trigger)
+    
+    print(trigger_list)
+    return trigger_list
 
 
 if __name__ == '__main__':
