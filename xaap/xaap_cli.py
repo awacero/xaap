@@ -33,10 +33,6 @@ log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config
 logging.config.fileConfig(log_file_path)
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
-print("###")
-#print(xaap_config_dir)
-print(sys.argv)
-#logging.config.fileConfig(xaap_config_dir / "logging.ini" ,disable_existing_loggers=False)
 logger = logging.getLogger('stdout')
 logger.setLevel(logging.INFO)
 
