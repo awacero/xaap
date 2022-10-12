@@ -105,6 +105,15 @@ def main():
                 os.makedirs(model_path)
 
             pickle.dump(rnd_clf, open(os.path.join(model_path,'%s_rf_%s.pkl'%(volcano,unique_id)),'wb'), protocol=4)
+            
+            # Conversion pkl to json file in the same models folder
+            json_path = model_path+'/%s_rf_%s.pkl'%(volcano,unique_id)
+            with open(json_path, 'rb') as infile:
+                obj = pickle.load(infile)
+            json_obj = json.loads(json.dumps(obj, default=str))
+
+            json.dump(json_obj, open(os.path.join(model_path,'%s_rf_%s.json'%(volcano,unique_id)),'w',
+                encoding='utf-8'), ensure_ascii=False, indent=4)
 
 
         except Exception as e:
