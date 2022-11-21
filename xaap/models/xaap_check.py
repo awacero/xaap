@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os, sys
-import symbol
+#import symbol
 from pathlib import Path
 
 from get_mseed_data import get_mseed_utils as gmutils
@@ -15,6 +15,8 @@ import logging, logging.config
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
+print("###")
+print(xaap_config_dir)
 logging.config.fileConfig(xaap_config_dir / "logging.ini" ,disable_existing_loggers=False)
 logger = logging.getLogger('stdout')
 logger.setLevel(logging.INFO)

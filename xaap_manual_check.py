@@ -13,30 +13,30 @@ import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QHeaderView , QPushButton, QShortcut, QApplication
 from PyQt5.QtGui import QKeySequence
 
-from xaap.models import xaap_check_backend as bk_check
+from xaap.models import xaap_check 
 
-class xaap_check(QtGui.QWidget):
+class xaapCheck(QtGui.QWidget):
 
     def __init__(self):
 
-        bk_check.logger.info("Continuation of all this #$%&")
+        xaap_check.logger.info("Continuation of all this #$%&")
 
         QtGui.QWidget.__init__(self)
         
-        self.classifications_path = Path(bk_check.xaap_dir,"data/"+
+        self.classifications_path = Path(xaap_check.xaap_dir,"data/"+
                                          "classifications/")
         
         self.setupGUI()
         self.params = self.create_parameters()
-        if bk_check.os.path.exists(self.classifications_path):
+        if xaap_check.os.path.exists(self.classifications_path):
             classified_triggers_files =\
-                [bk_check.os.path.splitext(p)[0]\
-                for p in bk_check.os.listdir(self.classifications_path)]
+                [xaap_check.os.path.splitext(p)[0]\
+                for p in xaap_check.os.listdir(self.classifications_path)]
             self.params.param('Classification file').\
                               setLimits(classified_triggers_files)
 
         self.tree.setParameters(self.params, showTop=True)
-        bk_check.connect_to_mseed_server(self)
+        xaap_check.connect_to_mseed_server(self)
 
         self.table_widget.verticalHeader().\
             sectionDoubleClicked.connect(self.get_plots)
@@ -47,7 +47,7 @@ class xaap_check(QtGui.QWidget):
 
     def load_data_to_tbl_widget(self):
 
-        predicted_data = bk_check.load_csv_file(self)
+        predicted_data = xaap_check.load_csv_file(self)
         self.table_widget.setColumnCount(6)
         self.table_widget.setFont(QtGui.QFont('Helvetica', 10))
         self.table_widget.appendData(predicted_data[['trigger_code','','',
@@ -87,12 +87,12 @@ class xaap_check(QtGui.QWidget):
 
     def get_plots(self):
 
-        bk_check.logger.info(self.table_widget.currentRow())
+        xaap_check.logger.info(self.table_widget.currentRow())
         trigger_code = self.table_widget.item(self.table_widget.currentRow(), 0).text()
         
         self.trigger_times, self.paded_stream, self.trigger_stream,\
         self.paded_times, max_trigger, min_trigger,  amp_max, max_loc,\
-            min_loc, rms = bk_check.get_trigger(self, trigger_code)
+            min_loc, rms = xaap_check.get_trigger(self, trigger_code)
 
 
         #########################
@@ -239,7 +239,7 @@ class xaap_check(QtGui.QWidget):
             {'name':'Save triggers','type':'action'}
                                                                          ]
                                                                          )
-        bk_check.logger.info("End of set parameters")
+        xaap_check.logger.info("End of set parameters")
         return xaap_parameters
 
 
@@ -255,7 +255,7 @@ if __name__ == '__main__':
     QMenu QWidget {font-size: 10px}
     """)
 
-    win = xaap_check()
+    win = xaapCheck()
     win.setWindowTitle("xaap_check")
     win.showMaximized()
     win.resize(1100,700)
