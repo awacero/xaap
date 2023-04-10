@@ -14,52 +14,82 @@ import json
 ## CREAR LAS CARPETAS FEATURES  SI NO EXISTEN 
 def get_features(sipass_row,mseed_client_id,client,network,location,features,output_feature_file):
 
+    """
+    This function retrieves a waveform data stream from the given parameters, computes the specified features from it,
+    and writes the feature values to a file.
+
+    Args:
+        sipass_row (dict): A dictionary containing the SIPASS row information, including 'FECHA', 'HORA',
+            'CODA', 'ESTACION', 'COMPONENTE', and 'TIPO'.
+        mseed_client_id (str): The ID for the MiniSEED client.
+        client (str): The client name.
+        network (str): The network code.
+        location (str): The location code.
+        features (obj): The feature object for computing waveform features.
+        output_feature_file (str): The file path for writing the computed features.
+
+    Returns:
+        bool: True if the features were successfully computed and written, False otherwise.
+    """
+
+
     day_month_year  = sipass_row['FECHA']
     day,month,year = day_month_year.split("/")
-    month = "%02d" %int(month)
-    day = "%02d" %int(day)
-
+    month = f"{int(month):02d}"
+    day = f"{int(day):02d}"
+    
     hour_minute_second = sipass_row['HORA']
     hour, minute, second = hour_minute_second.split(":")
-    hour = "%02d" %int(hour)
-    minute = "%02d" %int(minute)
-    second = "%02d" %int(second)
+    hour = f"{int(hour):02d}"
+    minute = f"{int(minute):02d}"
+    second = f"{int(second):02d}"
 
 
     if second == 60:
-        second = 0
-        minute +=1
+        second = "00"
+        minute = f"{int(minute)+1:02d}"
+        #second = 0
+        #minute +=1
 
-    start_time = UTCDateTime("%s-%s-%s %s:%s:%s" %(year,month,day,hour,minute,second) )
+    #start_time = UTCDateTime("%s-%s-%s %s:%s:%s" %(year,month,day,hour,minute,second) )
+    start_time = UTCDateTime(f"{year}-{month}-{day} {hour}:{minute}:{second}")
     end_time = UTCDateTime(start_time) + int(sipass_row['CODA'])
 
     station = sipass_row['ESTACION']
     channel = sipass_row['COMPONENTE']
     event_type = sipass_row['TIPO']
 
-    file_code = "%s.%s.%s.%s.%s" %(network,station,location,channel,start_time.strftime("%Y.%m.%d.%H%M%S")) 
+
+    file_code = f"{network}.{station}.{location}.{channel}.{start_time.strftime('%Y.%m.%d.%H%M%S')}"
     print(file_code)
     try:
+        # Get the waveform data stream from the MiniSEED client
         temp_stream=get_mseed.get_stream(mseed_client_id,client,network,station,location,channel,start_time=start_time,end_time=end_time)
+        # Get the sampling rate from the waveform data stream
         fs = temp_stream[0].stats['sampling_rate']
+        # Compute the specified features from the waveform data and join them together in a string
         features.compute(temp_stream[0].data,fs)
         features_string = ', '.join(map(str,features.featuresValues)) 
-        row = "%s, %s , %s \n"% (file_code,event_type, features_string)
+        row = f"{file_code}, {event_type}, {features_string}\n"
         #print(row)
         feature_file = open(output_feature_file,'a+')
         feature_file.write(row)
         feature_file.flush()
+        return True
     except Exception as e:
-        print("Error in get_stream or write for %s, error was: %s" %(file_code, str(e)))        
-        return 0
+        print(f"Error in get_stream or write for {file_code}, error was: {e}")
+        return False
     print(start_time,end_time)
 
 
-def callback_function(res):
-    
-    #print("Result of multiprocess: %s" %res)
-    print("")
 
+
+
+def callback_function(result):
+    
+    if result:
+        print("Result of multiprocess: %s" %result)
+    
 
 
 
@@ -67,7 +97,7 @@ def main():
 
     is_error = False
 
-    if len(sys.argv)==1:
+    if len(sys.argv) == 1:
         is_error = True
 
     else:
@@ -75,7 +105,7 @@ def main():
         try:
             run_param = gmutils.read_parameters(sys.argv[1])
         except Exception as e:
-            raise Exception("Error reading configuration file: %s" %str(e))
+            raise Exception(f"Error reading configuration file: {e}")
 
         try:
             volcano = run_param['ENVIRONMENT']['volcano']
@@ -85,37 +115,36 @@ def main():
 
             network = run_param['STATIONS_INFO']['network']
             location = run_param['STATIONS_INFO']['location']
-            if location=='None':
+            if location == 'None':
                 location = ""
-            
+
             mseed_client_id = run_param['MSEED_SERVER']['mseed_client_id']
             mseed_server_config_file = run_param['MSEED_SERVER']['mseed_server_config_file']
 
-            feature_config = {"features_file":"%s" %run_param['FEATURES_CONFIG']['features_file'],
-                                "domains":"%s" %run_param['FEATURES_CONFIG']['domains']}
-            
+            feature_config = {"features_file": run_param['FEATURES_CONFIG']['features_file'],
+                              "domains": run_param['FEATURES_CONFIG']['domains']}
+
         except Exception as e:
-            raise Exception("Error reading parameters file: %s" %str(e))
+            raise Exception(f"Error reading parameters file: {e}")
 
         try:
             mseed_server_param = gmutils.read_config_file(mseed_server_config_file)
             client = get_mseed.choose_service(mseed_server_param[mseed_client_id])
         except Exception as e:
-            raise Exception("Error connecting to MSEED server : %s" %str(e))
+            raise Exception(f"Error connecting to MSEED server: {e}")
 
         try:
-            sipass_data  = pd.read_csv(sipass_db_file,sep=';')
+            sipass_data = pd.read_csv(sipass_db_file, sep=';')
         except Exception as e:
-            raise Exception("Error reading SIPASS file : %s" %str(e))
-        
-        try:        
-            output_feature_file = "%s/features_%s_%s.csv" %(features_folder,volcano,unique_id)  
+            raise Exception(f"Error reading SIPASS file: {e}")
+
+        try:
+            output_feature_file = f"{features_folder}/features_{volcano}_{unique_id}.csv"
 
         except Exception as e:
-            raise Exception("Error creating feature file : %s" %str(e))
+            raise Exception(f"Error creating feature file: {e}")
 
-        
-        if len(sys.argv)==2:
+        if len(sys.argv) == 2:
             start_row = 0
             print(f"####{sipass_data.size}")
             end_row = int(sipass_data.size)
@@ -126,23 +155,24 @@ def main():
         features = FeatureVector(feature_config, verbatim=2)
 
         pool = multiprocessing.get_context('spawn').Pool(processes=cores)
-        #pool = Pool(processes=cores)
 
-        results = [ pool.apply_async(get_features,args = ([row,mseed_client_id,client,network,location,
-                                                            features,output_feature_file]),callback=callback_function) for i,row in sipass_data.iloc[start_row:end_row].iterrows()]
+        results = [pool.apply_async(get_features, args=([row, mseed_client_id, client, network, location,
+                                                         features, output_feature_file]), callback=callback_function) for i, row in sipass_data.iloc[start_row:end_row].iterrows()]
 
-        for i,res in enumerate(results):
+        for i, res in enumerate(results):
             try:
-                
-                print("#%s: Result of multiprocess: %s" %(i,res.get(timeout = 60)))
+                print(f"#{i}: Result of multiprocess: {res.get(timeout=60)}")
             except Exception as e:
-                print("Error in result %s was %s" %(i,str(e)))
+                print(f"Error in result {i} was {e}")
 
         pool.close()
         pool.terminate()
 
     if is_error:
-        print(f'Usage: python {sys.argv[0]} configuration_file.txt [start] [end] ')    
+        print(f"Usage: python {sys.argv[0]} configuration_file.txt [start] [end]")   
+
+
+
 
 
 if __name__ == "__main__": 

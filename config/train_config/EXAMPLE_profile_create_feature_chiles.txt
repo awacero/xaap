@@ -1,0 +1,36 @@
+; Configuration file for XAAP
+
+[ENVIRONMENT]
+; The name of the volcano being monitored.
+volcano = chiles
+
+; The number of CPU cores to use for processing.
+cores = 10
+
+; The path to the SIPASS database file.
+sipass_db_file = ./data/sipass/base_chiles_vt_lp.csv
+
+; The path to the folder where feature files will be stored.
+features_folder = ./data/features/
+
+[STATIONS_INFO]
+; The network code of the seismic station.
+network = EC
+
+; The location code of the seismic station (or None if not applicable).
+location = None
+
+[MSEED_SERVER]
+; The ID of the MSEED server client to use.
+mseed_client_id = ARCHIVE
+
+; The path to the configuration file for the MSEED server.
+mseed_server_config_file = ./config/server_configuration.json
+
+[FEATURES_CONFIG]
+; The path to the file containing the feature definitions.
+features_file = ./config/features/features_00.json
+
+; The domains to use for feature extraction (separated by spaces).
+; domains available are time spectral cepstral
+domains = spectral cepstral
