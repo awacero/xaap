@@ -117,7 +117,8 @@ def main():
         
         if len(sys.argv)==2:
             start_row = 0
-            end_row = sipass_data.size[0]
+            print(f"####{sipass_data.size}")
+            end_row = int(sipass_data.size)
         else:
             start_row = int(sys.argv[2])
             end_row = int(sys.argv[3])

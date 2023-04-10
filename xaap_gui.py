@@ -25,19 +25,41 @@ from sklearn.preprocessing import StandardScaler
 import pickle 
 from sklearn.ensemble import RandomForestClassifier
 
-import logging, logging.config
+from xaap.config.xaap_configuration import configure_logging
+from xaap.config.xaap_configuration import configure_parameters_from_gui
+from xaap.process import process
+
+import logging
+
+import json
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
+
+"""
+import logging, logging.config
+
+
 logging.config.fileConfig(xaap_config_dir / "logging.ini" ,disable_existing_loggers=False)
 logger = logging.getLogger('stdout')
 logger.setLevel(logging.INFO)
 
+"""
+
+#logging.getLogger().setLevel(logging.DEBUG)
+
+
 #pd.set_option('display.max_columns',None)
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 class xaapGUI(QtGui.QWidget):  
+    """
+    A class for creating and configuring the xaap GUI.
+    """
 
     def __init__(self):
+        """
+        Initializes the xaapGUI class.
+        """
 
         logger.info("Start of all the process. Working directory %s" %xaap_dir)
 
@@ -46,7 +68,7 @@ class xaapGUI(QtGui.QWidget):
         self.setupGUI()       
         #self.xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))       
         self.params = self.create_parameters()
-        self.parameters_dir = Path(xaap_dir, 'config/xaap_parameters')
+        self.parameters_dir = Path(xaap_dir, 'config','xaap_parameters')
         if os.path.exists(self.parameters_dir):
             presets = [os.path.splitext(p)[0] for p in os.listdir(self.parameters_dir)]
             self.params.param('Load Preset..').setLimits(['']+presets)
@@ -55,7 +77,15 @@ class xaapGUI(QtGui.QWidget):
         '''loadPreset is called with parameters: param and preset '''
         self.params.param('Load Preset..').sigValueChanged.connect(self.loadPreset)
         self.params.param('Save').sigActivated.connect(self.save)
+        
         self.params.param('Request Data').sigActivated.connect(self.request_stream)
+        #print(f"CTM json config{ self.json_xaap_state}")
+
+        """Create a configuration object using the gui parameters, then send it to the processing part"""
+        xaap_configuration = configure_parameters_from_gui(self.json_xaap_state)
+
+        ###self.params.param("Request Data").sigActivated.connect(lambda: process.temp_request_stream(xaap_configuration))
+        
         self.params.param('Pre-process').sigActivated.connect(self.pre_process_stream)
         self.params.param('Plot stream').sigActivated.connect(self.plot_stream)
         self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
@@ -63,24 +93,7 @@ class xaapGUI(QtGui.QWidget):
         self.params.param('Detect triggers').sigActivated.connect(self.detect_triggers)
         self.params.param('Classify triggers').sigActivated.connect(self.classify_triggers)
 
-        '''Start of automatic process '''
-        """
 
-        self.request_stream()
-
-        if self.volcan_stream == None:
-            logger.info("No data available")
-        elif len(self.volcan_stream[0].data)==0:
-            logger.info("No data available")
-        else:
-
-            logger.info("ok request_stream() in __init__. Continue with Pre-process")
-            self.pre_process_stream()
-            self.plot_stream()
-            self.detect_triggers()
-            #self.classify_triggers()
-            #self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
-        """ 
 
 
 
@@ -140,6 +153,10 @@ class xaapGUI(QtGui.QWidget):
                                                                          ]                                                                         
                                                                          )
         logger.info("End of set parameters") 
+        print("CTM PARAMETER")
+        xaap_state = xaap_parameters.saveState()
+        self.json_xaap_state = json.dumps(xaap_state, indent=2)
+
         return xaap_parameters
 
 
@@ -326,11 +343,15 @@ class xaapGUI(QtGui.QWidget):
 
         ##leer esto desde la configuracion
         ## leer solo las mejores caracteristicas?
+        ####TODO: CAMBIAR A CONFIGRACION 
         feature_config = {"features_file":"%s/config/features/features_00.json" %xaap_dir,
                     #"domains":"time spectral cepstral"}
                     "domains":"spectral cepstral"}
         #tungu_clf= pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
-        volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20220902115108.pkl'),'rb'))
+        #chiles_rf_20230410092541
+        #volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20220902115108.pkl'),'rb'))
+        volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20230410092541.pkl'),'rb'))
+
         classified_triggers_file = Path(xaap_dir,"data/classifications") / UTCDateTime.now().strftime("out_xaap_%Y.%m.%d.%H.%M.%S.txt")
         classification_file = open(classified_triggers_file,'a+')
         #Como guardar categorias en  el modelo?
@@ -487,6 +508,13 @@ class xaapGUI(QtGui.QWidget):
 
 
 if __name__ == '__main__':
+
+    print("call logging configuration")
+    logger = configure_logging()
+    logger.info("Logging configurated")
+
+
+
     app = pg.mkQApp()
     app.setStyleSheet("""
     QWidget {font-size: 15px}
