@@ -30,10 +30,12 @@ python xaap_gui.py
 
 ## Create the feature set using SIPASS CSV data
 
+Run the create feature module with a configuration profile and optionally the number of rows to read.
+
 ```
 conda activate xaap 
-cd xaap/xaap
-python create_feature_set.py config/profile_create_feature_guagua.txt 1 2222
+cd xaap
+python train/create_feature_set.py config/profile_create_feature_guagua.txt 1 2222
 ```
 The features computed are stored in xaap/data/features/features_guagua_UNIQUEID.csv
 
