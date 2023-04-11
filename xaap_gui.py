@@ -7,9 +7,6 @@ from pyqtgraph.Qt import QtGui, QtCore
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import pyqtgraph.configfile
 
-from get_mseed_data import get_mseed_utils as gmutils
-from get_mseed_data import get_mseed
-
 from obspy.signal import filter  
 from obspy import Trace, Stream
 from obspy.signal.trigger import coincidence_trigger
@@ -38,17 +35,8 @@ from xaap.process import pre_process
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
 
-"""
-import logging, logging.config
 
 
-logging.config.fileConfig(xaap_config_dir / "logging.ini" ,disable_existing_loggers=False)
-logger = logging.getLogger('stdout')
-logger.setLevel(logging.INFO)
-
-"""
-
-#logging.getLogger().setLevel(logging.DEBUG)
 
 
 #pd.set_option('display.max_columns',None)
@@ -70,36 +58,37 @@ class xaapGUI(QtGui.QWidget):
         self.setupGUI()       
         #self.xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))       
         self.params = self.create_parameters()
+
+
+        print("END CREATE PARAMETER")
         self.parameters_dir = Path(xaap_dir, 'config','xaap_parameters')
         if os.path.exists(self.parameters_dir):
             presets = [os.path.splitext(p)[0] for p in os.listdir(self.parameters_dir)]
-            self.params.param('Load Preset..').setLimits(['']+presets)
+            self.params.param('load_preset..').setLimits(['']+presets)
         self.tree.setParameters(self.params, showTop=True)
         logger.info("Configure parameter signals")
         '''loadPreset is called with parameters: param and preset '''
-        self.params.param('Load Preset..').sigValueChanged.connect(self.loadPreset)
-        self.params.param('Save').sigActivated.connect(self.save)
+        self.params.param('load_preset..').sigValueChanged.connect(self.loadPreset)
+        self.params.param('save').sigActivated.connect(self.save)
         
 
         """Create a configuration object using the gui parameters, then send it to the processing part"""
         xaap_configuration = configure_parameters_from_gui(self.json_xaap_state)
 
         """Get the stream for the configured volcano"""        
-        self.params.param("Request Data").sigActivated.connect(lambda: self.gui_request_stream(xaap_configuration))
+        self.params.param("request_data").sigActivated.connect(lambda: self.gui_request_stream(xaap_configuration))
 
 
-        """Preprocess: sort, merge and filter the stream for the configured volcano"""     
-        ###self.params.param('Pre-process').sigActivated.connect(self.pre_process_stream)
-   
-        self.params.param("Pre-process").sigActivated.connect(lambda: self.gui_pre_process_stream(xaap_configuration))
+        """Preprocess: sort, merge and filter the stream for the configured volcano"""       
+        self.params.param("pre_process").sigActivated.connect(lambda: self.gui_pre_process_stream(xaap_configuration))
 
-
-
-        self.params.param('Plot stream').sigActivated.connect(self.plot_stream)
+        self.params.param('plot_stream').sigActivated.connect(self.plot_stream)
         self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
         self.p1.sigRangeChanged.connect(self.set_p2_using_p1)
-        self.params.param('Detect triggers').sigActivated.connect(self.detect_triggers)
-        self.params.param('Classify triggers').sigActivated.connect(self.classify_triggers)
+
+
+        self.params.param('detect_triggers').sigActivated.connect(self.detect_triggers)
+        self.params.param('classify_triggers').sigActivated.connect(self.classify_triggers)
 
 
 
@@ -120,8 +109,6 @@ class xaapGUI(QtGui.QWidget):
 
         TEST_DATE = True 
 
-
-
         if TEST_DATE:
             start_datetime = UTCDateTime("2022-08-30 16:00:00")
             end_datetime = UTCDateTime("2022-08-31 16:00:00")
@@ -129,35 +116,36 @@ class xaapGUI(QtGui.QWidget):
             start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
             end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
 
+        """
         xaap_parameters = Parameter.create(
             
             name='xaap configuration',type='group',children=[
-            {'name':'Load Preset..','type':'list','limits':[]},
-            {'name':'Save','type':'action'},
-            {'name':'Load','type':'action'},
-            {'name':'Parameters','type':'group','children':[
+            {'name':'load_preset..','type':'list','limits':[]},
+            {'name':'save','type':'action'},
+            {'name':'load','type':'action'},
+            {'name':'parameters','type':'group','children':[
 
-                {'name':'MSEED','type':'group','children':[
+                {'name':'mseed','type':'group','children':[
                     {'name':'client_id','type':'list','values':['ARCHIVE','FDSN','SEEDLINK','ARCLINK']},
                     {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
                                                                  ]},
-                {'name':'Volcan configuration', 'type':'group','children':[
+                {'name':'volcan_configuration', 'type':'group','children':[
                     {'name':'volcanoes_config_file','type':'str','value':'%s' %('volcanoes.json')},
                     {'name':'stations_config_file','type':'str','value':'%s' %('stations.json')},
                     {'name':'volcan_name','type':'str','value':'CHILES' }
                                                                             ]},
 
-                {'name':'Dates','type':'group','children':[
+                {'name':'dates','type':'group','children':[
                     {'name':'start','type':'str','value':'%s' %start_datetime },
                     {'name':'end','type':'str','value':'%s' %end_datetime }
                                                             ]},
                                                           
-                {'name':'Filter','type':'group','children':[
-                    {'name':'Filter type','type':'list','values':['highpass','bandpass','lowpass']},
-                    {'name':'Freq_A','type':'float','value':0.5,'step':0.1,'limits': [0.1, None ]},
-                    {'name':'Freq_B','type':'float','value':1.0,'step':0.1,'limits': [0.1, None ]}    ]},
+                {'name':'filter','type':'group','children':[
+                    {'name':'filter_type','type':'list','values':['highpass','bandpass','lowpass']},
+                    {'name':'freq_A','type':'float','value':0.5,'step':0.1,'limits': [0.1, None ]},
+                    {'name':'freq_B','type':'float','value':1.0,'step':0.1,'limits': [0.1, None ]}    ]},
 
-                {'name':'STA_LTA','type':'group', 'children': [
+                {'name':'sta_lta','type':'group', 'children': [
                     {'name':'sta','type':'float','value':0.5,'step':0.5,'limits': [0.1, None ]},                    
                     {'name':'lta','type':'float','value':10,'step':0.5,'limits': [1, None ]},
                     {'name':'trigon','type':'float','value':3.5,'step':0.1,'limits': [0.1, None ]},
@@ -169,17 +157,49 @@ class xaapGUI(QtGui.QWidget):
                     {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
                                                             ]},
                                                           ]},
-            {'name':'Request Data','type':'action'},                                                           
-            {'name':'Pre-process','type':'action'},
-            {'name':'Plot stream','type':'action'},
-            {'name':'Detect triggers','type':'action'},
-            {'name':'Classify triggers','type':'action'}                
+            {'name':'request_data','type':'action'},                                                           
+            {'name':'pre_process','type':'action'},
+            {'name':'plot_stream','type':'action'},
+            {'name':'detect_triggers','type':'action'},
+            {'name':'classify_triggers','type':'action'}                
                                                                          ]                                                                         
-                                                                         )
+                                                                         
+            )
+
+        
+
+
+        
         logger.info("End of set parameters") 
         xaap_state = xaap_parameters.saveState()
-        self.json_xaap_state = json.dumps(xaap_state, indent=2)
 
+
+        xaap_parameters.addChild({'name':'request_data','type':'action'} )
+        xaap_parameters.addChild({'name':'pre_process','type':'action'})    
+        xaap_parameters.addChild({'name':'plot_stream','type':'action'})    
+        xaap_parameters.addChild({'name':'detect_triggers','type':'action'})    
+        xaap_parameters.addChild({'name':'classify_triggers','type':'action'})    
+
+
+        """
+
+        #'''
+        xaap_parameters = Parameter.create(name='xaap_configuration',type='group',children=[])
+        with open('./config/xaap_gui.json', 'r') as f:
+            json_data = f.read()
+        xaap_parameters.restoreState(json.loads(json_data))
+
+
+
+        #''' 
+
+        #with open('./config/xaap_gui.json','w') as f:
+        #    json.dump(xaap_parameters.saveState(),f,indent=2)
+
+        xaap_state = xaap_parameters.saveState()
+
+        self.json_xaap_state = json.dumps(xaap_state, indent=2)
+        print(xaap_state)
         return xaap_parameters
 
 
@@ -217,12 +237,12 @@ class xaapGUI(QtGui.QWidget):
 
     def detect_triggers(self):
 
-        sta = self.params['Parameters','STA_LTA','sta']
-        lta = self.params['Parameters','STA_LTA','lta']
-        trigon = self.params['Parameters','STA_LTA','trigon']
-        trigoff = self.params['Parameters','STA_LTA','trigoff']
-        coincidence = self.params['Parameters','STA_LTA','coincidence']
-        endtime_extra = self.params['Parameters','STA_LTA','endtime_extra']
+        sta = self.params['parameters','sta_lta','sta']
+        lta = self.params['parameters','sta_lta','lta']
+        trigon = self.params['parameters','sta_lta','trigon']
+        trigoff = self.params['parameters','sta_lta','trigoff']
+        coincidence = self.params['parameters','sta_lta','coincidence']
+        endtime_extra = self.params['parameters','sta_lta','endtime_extra']
         self.triggers_traces = []
 
         self.triggers = coincidence_trigger("recstalta", trigon, trigoff, self.volcan_stream, coincidence, sta=sta, lta=lta)

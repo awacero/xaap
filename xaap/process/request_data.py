@@ -12,7 +12,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-xaap_config_dir = os.path.join(os.path.dirname(__file__),'..' ,'config')
 
 def request_stream(xaap_config):
     logger.info("Start of request_stream")
