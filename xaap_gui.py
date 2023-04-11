@@ -25,13 +25,15 @@ from sklearn.preprocessing import StandardScaler
 import pickle 
 from sklearn.ensemble import RandomForestClassifier
 
-from xaap.config.xaap_configuration import configure_logging
-from xaap.config.xaap_configuration import configure_parameters_from_gui
-from xaap.process import process
+from xaap.configuration.xaap_configuration import configure_logging
+from xaap.configuration.xaap_configuration import configure_parameters_from_gui
+from xaap.process import request_data
 
 import logging
 
 import json
+
+from xaap.process import pre_process
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
@@ -78,15 +80,21 @@ class xaapGUI(QtGui.QWidget):
         self.params.param('Load Preset..').sigValueChanged.connect(self.loadPreset)
         self.params.param('Save').sigActivated.connect(self.save)
         
-        self.params.param('Request Data').sigActivated.connect(self.request_stream)
-        #print(f"CTM json config{ self.json_xaap_state}")
 
         """Create a configuration object using the gui parameters, then send it to the processing part"""
         xaap_configuration = configure_parameters_from_gui(self.json_xaap_state)
 
-        ###self.params.param("Request Data").sigActivated.connect(lambda: process.temp_request_stream(xaap_configuration))
-        
-        self.params.param('Pre-process').sigActivated.connect(self.pre_process_stream)
+        """Get the stream for the configured volcano"""        
+        self.params.param("Request Data").sigActivated.connect(lambda: self.gui_request_stream(xaap_configuration))
+
+
+        """Preprocess: sort, merge and filter the stream for the configured volcano"""     
+        ###self.params.param('Pre-process').sigActivated.connect(self.pre_process_stream)
+   
+        self.params.param("Pre-process").sigActivated.connect(lambda: self.gui_pre_process_stream(xaap_configuration))
+
+
+
         self.params.param('Plot stream').sigActivated.connect(self.plot_stream)
         self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
         self.p1.sigRangeChanged.connect(self.set_p2_using_p1)
@@ -95,14 +103,32 @@ class xaapGUI(QtGui.QWidget):
 
 
 
+    def gui_request_stream(self, xaap_configuration):
+        self.volcan_stream = request_data.request_stream(xaap_configuration)
+        # do other processing as necessary
+        print(self.volcan_stream)
 
+    def gui_pre_process_stream(self,xaap_configuration):
+        
+        self.volcan_stream = pre_process.pre_process_stream(xaap_configuration,self.volcan_stream)
 
+        print(self.volcan_stream)
 
 
     def create_parameters(self):
 
-        start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
-        end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
+
+        TEST_DATE = True 
+
+
+
+        if TEST_DATE:
+            start_datetime = UTCDateTime("2022-08-30 16:00:00")
+            end_datetime = UTCDateTime("2022-08-31 16:00:00")
+        else:
+            start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
+            end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
+
         xaap_parameters = Parameter.create(
             
             name='xaap configuration',type='group',children=[
@@ -122,10 +148,8 @@ class xaapGUI(QtGui.QWidget):
                                                                             ]},
 
                 {'name':'Dates','type':'group','children':[
-                    #{'name':'start','type':'str','value':'%s' %start_datetime },
-                    #{'name':'end','type':'str','value':'%s' %end_datetime }
-                    {'name':'start','type':'str','value':'%s' %(UTCDateTime("2022-08-30 16:00:00")) },
-                    {'name':'end','type':'str','value':'%s' %(UTCDateTime("2022-08-31 16:00:00")) }
+                    {'name':'start','type':'str','value':'%s' %start_datetime },
+                    {'name':'end','type':'str','value':'%s' %end_datetime }
                                                             ]},
                                                           
                 {'name':'Filter','type':'group','children':[
@@ -153,111 +177,10 @@ class xaapGUI(QtGui.QWidget):
                                                                          ]                                                                         
                                                                          )
         logger.info("End of set parameters") 
-        print("CTM PARAMETER")
         xaap_state = xaap_parameters.saveState()
         self.json_xaap_state = json.dumps(xaap_state, indent=2)
 
         return xaap_parameters
-
-
-    def request_stream(self):
-
-        try:
-            mseed_client_id = self.params['Parameters','MSEED','client_id']
-            mseed_server_config_file = xaap_config_dir / self.params['Parameters','MSEED','server_config_file']
-            mseed_server_param = gmutils.read_config_file(mseed_server_config_file)
-            self.mseed_client = get_mseed.choose_service(mseed_server_param[mseed_client_id])
-
-        except Exception as e:
-            raise Exception("Error connecting to MSEED server : %s" %str(e))
-        
-        try:
-            volcanoes_config_file = xaap_config_dir / self.params['Parameters', 'Volcan configuration','volcanoes_config_file']
-            volcanoes_stations = gmutils.read_config_file(volcanoes_config_file)
-
-        except Exception as e:
-            raise Exception("Error reading volcano config file : %s" %str(e))
-
-        try:
-            stations_config_file = xaap_config_dir / self.params['Parameters', 'Volcan configuration','stations_config_file']
-            stations_param = gmutils.read_config_file(stations_config_file)
-
-        except Exception as e:
-            raise Exception("Error reading volcano config file : %s" %str(e))
-
-        
-
-        try:
-            mseed_client_id = self.params['Parameters','MSEED','client_id']
-            start_time = UTCDateTime(self.params['Parameters','Dates', 'start'])
-            end_time = UTCDateTime(self.params['Parameters','Dates', 'end'])
-            volcan_name = self.params['Parameters', 'Volcan configuration','volcan_name']
-            volcan_stations = volcanoes_stations[volcan_name][volcan_name]
-            self.volcan_stations_list = []
-            
-            for temp_station in volcan_stations:
-                self.volcan_stations_list.append(stations_param[temp_station])
-
-            
-            st = Stream()
-
-            for st_ in self.volcan_stations_list:
-                for loc in st_['loc']:
-                    if not loc:
-                        loc = ''
-                    for cha in st_['cha']:
-                        stream_id = "%s.%s.%s.%s.%s.%s" %(st_['net'],st_['cod'],st_['loc'][0],cha,start_time,end_time)
-                        mseed_stream=get_mseed.get_stream(mseed_client_id,self.mseed_client,st_['net'],st_['cod'],loc,cha,start_time=start_time,end_time=end_time)
-                        print("####")
-                        print(stream_id)
-                        if mseed_stream:
-                            mseed_stream.merge(method=1, fill_value="interpolate",interpolation_samples=0)
-                            st+=mseed_stream
-                        else:
-                            logger.info("no stream: %s" %stream_id)
-            ##COLOCAR EN PREPROCESS Y HABILITAR MULTIPLES FILTROS
-            st.filter('highpass', freq=0.5)  # optional prefiltering
-            #st.filter('bandpass', freqmin=10, freqmax=20)  # optional prefiltering
-            self.volcan_stream = st.copy()
-
-            
-        except Exception as e:
-            raise Exception("Error reading parameters was: %s" %str(e))
-
-
-
-    def pre_process_stream(self):
-
-        self.processed_stream = None
-        logger.info("self.processed_stream cleaned :%s" %self.processed_stream)
-        try:
-            #self.processed_stream = self.stream.copy()
-            self.processed_stream = self.volcan_stream.copy()
-            self.processed_stream.merge(method=1, fill_value="interpolate",interpolation_samples=0)
-            logger.info("Stream merged: %s" %self.processed_stream)
-
-            self.times = self.processed_stream[0].times(type="timestamp")
-            sampling_rate = self.processed_stream[0].stats.sampling_rate
-
-            f_a = self.params['Parameters','Filter','Freq_A']
-            f_b = self.params['Parameters','Filter','Freq_B']
-
-            filter_type = self.params['Parameters','Filter','Filter type']
-            if filter_type == 'highpass':
-                logger.info("highpass selected")
-                temp_data = filter.highpass(self.processed_stream[0].data,f_a,sampling_rate,4)
-            elif filter_type == 'bandpass':
-                logger.info("bandpass selected")
-                temp_data = filter.bandpass(self.processed_stream[0].data,f_a,f_b,sampling_rate,4)
-            elif filter_type == 'lowpass':
-                logger.info("lowpass selected")
-                temp_data = filter.lowpass(self.processed_stream[0].data,f_a,sampling_rate,4)
-
-            #self.processed_stream[0].data = temp_data
-            self.volcan_stream[0].data = temp_data
-
-        except Exception as e:
-            logger.error("Error at pre_process_stream() was : %s" %str(e))
 
 
     def plot_stream(self):
