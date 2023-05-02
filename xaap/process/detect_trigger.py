@@ -7,51 +7,49 @@ from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
 
-def detect_triggers(self):
+def get_triggers( xaap_config, volcan_stream ):
 
-    sta = self.params['Parameters','STA_LTA','sta']
-    lta = self.params['Parameters','STA_LTA','lta']
-    trigon = self.params['Parameters','STA_LTA','trigon']
-    trigoff = self.params['Parameters','STA_LTA','trigoff']
-    coincidence = self.params['Parameters','STA_LTA','coincidence']
-    endtime_extra = self.params['Parameters','STA_LTA','endtime_extra']
+    sta = float(xaap_config.sta_lta_sta)
+    lta = float(xaap_config.sta_lta_lta)
+    trigon = float(xaap_config.sta_lta_trigon)
+    trigoff = float(xaap_config.sta_lta_trigoff)
+    sta_lta_coincidence = float(xaap_config.sta_lta_coincidence)
     
-    
-    
-    self.triggers_traces = []
 
-    self.triggers = coincidence_trigger("recstalta", trigon, trigoff, self.volcan_stream, coincidence, sta=sta, lta=lta)
-    #for i,trg in enumerate(self.triggers):
+    triggers = coincidence_trigger("recstalta", trigon, trigoff, volcan_stream, 
+                                    sta_lta_coincidence, sta=sta, lta=lta)
+    #for i,trg in enumerate(triggers):
     #    logger.info("%s:%s.%s %s" %(i,trg['time'],trg['trace_ids'][0],trg['duration']))
-    triggers_pd = pd.DataFrame(self.triggers)
+    triggers_pd = pd.DataFrame(triggers)
 
-    detected_triggers_file = Path(xaap_dir,"data/detections") / UTCDateTime.now().strftime("trigger_xaap_%Y.%m.%d.%H.%M.%S.csv")
+    detected_triggers_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime("trigger_xaap_%Y.%m.%d.%H.%M.%S.csv")
     triggers_pd.to_csv(detected_triggers_file)
-    print(triggers_pd)
+    ##print(triggers_pd)
     logger.info("Total picks detected: %s " %(len(triggers_pd.stations)))
-    triggers_on =[]
-    trigger_dot_list =[]
-    
-    for i,trigger in enumerate(self.triggers):
+
+    return triggers
+
+def create_trigger_traces(xaap_config,volcan_stream,triggers):
+
+    """
+    Create traces of detected picks
+    sta_lta_endtime_buffer multiplied by trigger['duration'] gives a better trigger duration time
+    """
+    sta_lta_endtime_buffer = float(xaap_config.sta_lta_endtime_buffer)
+    #triggers_on =[]
+    triggers_traces = []
+
+    for i,trigger in enumerate(triggers):
         trigger_start_timestamp = trigger['time'].timestamp
         trigger_start = trigger['time']
-        trigger_duration = trigger['duration'] * endtime_extra
-        triggers_on.append(trigger_start_timestamp)
-        trigger_dot_list.append(0)
+        trigger_duration = trigger['duration'] * sta_lta_endtime_buffer
+        #triggers_on.append(trigger_start_timestamp)
         
-        trigger_stream_temp=self.volcan_stream.select(id=trigger['trace_ids'][0])
+        trigger_stream_temp = volcan_stream.select(id=trigger['trace_ids'][0])
         trigger_trace = trigger_stream_temp[0].slice(trigger_start, trigger_start + trigger_duration)
         #MINIMUM TRIGGER LENGTH
         if trigger_trace.count() > 1:
-            self.triggers_traces.append(trigger_trace)
+            triggers_traces.append(trigger_trace)
 
 
-    for trigger in self.triggers:
-        for trace_id in trigger['trace_ids']:
-            for plot_item in self.plot_items_list:
-                if plot_item.getAxis("left").labelText == trace_id:
-                    trigger_trace_temp=self.volcan_stream.select(id=trace_id)
-                    trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger_duration)
-                    #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
-                    plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
-
+    return triggers_traces 

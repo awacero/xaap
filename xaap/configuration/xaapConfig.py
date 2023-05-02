@@ -43,6 +43,14 @@ class xaapConfig():
         self.filter_freq_b = xaap_parameter["filter"]["freq_b"]
         self.filter_type = xaap_parameter["filter"]["type"]
 
+        self.sta_lta_sta = xaap_parameter["sta_lta"]["sta"]
+        self.sta_lta_lta = xaap_parameter["sta_lta"]["lta"]
+        self.sta_lta_trigon = xaap_parameter["sta_lta"]["trigon"]
+        self.sta_lta_trigoff = xaap_parameter["sta_lta"]["trigoff"]
+        self.sta_lta_coincidence = xaap_parameter["sta_lta"]["coincidence"]
+        self.sta_lta_endtime_buffer = xaap_parameter["sta_lta"]["endtime_buffer"]
 
+        self.output_detection_folder = xaap_parameter["output_data"]["output_detection_folder"]
+        self.output_classification_folder = xaap_parameter["output_data"]["output_classification_folder"]
 
         logger.info("xaapConfig object created")

@@ -1,6 +1,7 @@
 import logging.config
 
-from .xaapConfig import xaapConfig
+from  .xaapConfig import xaapConfig
+
 from pathlib import Path
 
 import logging
@@ -59,8 +60,16 @@ def configure_parameters_from_gui(json_xaap_config):
                                             ['filter_type']['value']
 
 
-    trigger_path = Path(xaap_config_dir)
-    
+    sta = json_config['children']['parameters']['children']['sta_lta']['children']['sta']['value']
+    lta = json_config['children']['parameters']['children']['sta_lta']['children']['lta']['value']
+    trigon = json_config['children']['parameters']['children']['sta_lta']['children']['trigon']['value']
+    trigoff = json_config['children']['parameters']['children']['sta_lta']['children']['trigoff']['value']
+    coincidence = json_config['children']['parameters']['children']['sta_lta']['children']['coincidence']['value']
+    endtime_buffer = json_config['children']['parameters']['children']['sta_lta']['children']['endtime_buffer']['value']
+
+    output_detection_folder = json_config['children']['parameters']['children']['output_data']['children']["output_detection_folder"]['value']
+    output_classification_folder = json_config['children']['parameters']['children']['output_data']['children']["output_classification_folder"]['value']
+
     config = configparser.ConfigParser()
     config.add_section("mseed")
     config.set("mseed","client_id",mseed_client_id)
@@ -81,6 +90,19 @@ def configure_parameters_from_gui(json_xaap_config):
     config.set("filter","freq_a",f"{filter_freq_a}")
     config.set("filter","freq_b",f"{filter_freq_b}")
     config.set("filter","type",filter_type)
+
+    config.add_section("sta_lta")
+    config.set("sta_lta","sta",f"{sta}")
+    config.set("sta_lta","lta",f"{lta}")
+    config.set("sta_lta","trigon",f"{trigon}")
+    config.set("sta_lta","trigoff",f"{trigoff}")
+    config.set("sta_lta","coincidence",f"{coincidence}")
+    config.set("sta_lta","endtime_buffer",f"{endtime_buffer}")
+
+
+    config.add_section("output_data")
+    config.set("output_data","output_detection_folder",f"{output_detection_folder}")
+    config.set("output_data","output_classification_folder",f"{output_classification_folder}")
 
 
     xaap_configuration = xaapConfig(config)

@@ -1,45 +1,41 @@
 # -*- coding: utf-8 -*-
 
-import os,sys
-from pathlib import Path
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtGui, QtCore
-from pyqtgraph.parametertree import Parameter, ParameterTree
-import pyqtgraph.configfile
-
-from obspy.signal import filter  
-from obspy import Trace, Stream
-from obspy.signal.trigger import coincidence_trigger
-from obspy import read, UTCDateTime
-from obspy.signal.trigger import classic_sta_lta
-from obspy.signal.trigger import classic_sta_lta, classic_sta_lta_py, recursive_sta_lta_py, plot_trigger, trigger_onset
+import json
+import logging
+import os
+import pickle
+import sys
 from datetime import date, datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from aaa_features.features import FeatureVector 
-from sklearn.preprocessing import StandardScaler
-import pickle 
+import pyqtgraph as pg
+import pyqtgraph.configfile
+from aaa_features.features import FeatureVector
+from obspy import Stream, Trace, UTCDateTime, read
+from obspy.signal import filter
+from obspy.signal.trigger import (classic_sta_lta, classic_sta_lta_py,
+                                  coincidence_trigger, plot_trigger,
+                                  recursive_sta_lta_py, trigger_onset)
+from pyqtgraph.parametertree import Parameter, ParameterTree
+from pyqtgraph.Qt import QtCore, QtGui
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from xaap.configuration import xaap_configuration
 
-from xaap.configuration.xaap_configuration import configure_logging
-from xaap.configuration.xaap_configuration import configure_parameters_from_gui
-from xaap.process import request_data
-
-import logging
-
-import json
-
-from xaap.process import pre_process
+from xaap.configuration.xaap_configuration import (
+    configure_logging, configure_parameters_from_gui)
+from xaap.process import pre_process, request_data, detect_trigger
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
-xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
+#xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
+xaap_config_dir = Path(xaap_dir,"config")
 
 
 
 
 
-#pd.set_option('display.max_columns',None)
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 class xaapGUI(QtGui.QWidget):  
     """
@@ -60,146 +56,99 @@ class xaapGUI(QtGui.QWidget):
         self.params = self.create_parameters()
 
 
-        print("END CREATE PARAMETER")
         self.parameters_dir = Path(xaap_dir, 'config','xaap_parameters')
         if os.path.exists(self.parameters_dir):
             presets = [os.path.splitext(p)[0] for p in os.listdir(self.parameters_dir)]
             self.params.param('load_preset..').setLimits(['']+presets)
         self.tree.setParameters(self.params, showTop=True)
         logger.info("Configure parameter signals")
+
         '''loadPreset is called with parameters: param and preset '''
         self.params.param('load_preset..').sigValueChanged.connect(self.loadPreset)
         self.params.param('save').sigActivated.connect(self.save)
         
 
         """Create a configuration object using the gui parameters, then send it to the processing part"""
-        xaap_configuration = configure_parameters_from_gui(self.json_xaap_state)
+        self.xaap_config = configure_parameters_from_gui(self.json_xaap_state)
 
         """Get the stream for the configured volcano"""        
-        self.params.param("request_data").sigActivated.connect(lambda: self.gui_request_stream(xaap_configuration))
+        self.params.param("request_data").sigActivated.connect(lambda: self.gui_request_stream())
 
 
         """Preprocess: sort, merge and filter the stream for the configured volcano"""       
-        self.params.param("pre_process").sigActivated.connect(lambda: self.gui_pre_process_stream(xaap_configuration))
+        self.params.param("pre_process").sigActivated.connect(lambda: self.gui_pre_process_stream())
 
         self.params.param('plot_stream').sigActivated.connect(self.plot_stream)
         self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
         self.p1.sigRangeChanged.connect(self.set_p2_using_p1)
 
 
-        self.params.param('detect_triggers').sigActivated.connect(self.detect_triggers)
+        ###self.params.param('detect_triggers').sigActivated.connect(self.detect_triggers)
+
+        self.params.param('detect_triggers').sigActivated.connect(lambda: self.gui_detect_triggers( ))
         self.params.param('classify_triggers').sigActivated.connect(self.classify_triggers)
 
 
 
-    def gui_request_stream(self, xaap_configuration):
-        self.volcan_stream = request_data.request_stream(xaap_configuration)
+    def gui_request_stream(self):
+        self.volcan_stream = request_data.request_stream(self.xaap_config)
         # do other processing as necessary
         print(self.volcan_stream)
 
-    def gui_pre_process_stream(self,xaap_configuration):
+    def gui_pre_process_stream(self):
         
-        self.volcan_stream = pre_process.pre_process_stream(xaap_configuration,self.volcan_stream)
+        self.volcan_stream = pre_process.pre_process_stream(self.xaap_config,self.volcan_stream)
 
         print(self.volcan_stream)
+
+
+    def gui_detect_triggers(self):
+
+        self.triggers = detect_trigger.get_triggers(self.xaap_config,self.volcan_stream)
+
+        self.plot_triggers()
+
+
+    
+    def plot_triggers(self):
+        print(xaap_configuration)
+        sta_lta_endtime_buffer = float(self.xaap_config.sta_lta_endtime_buffer)
+
+        for trigger in self.triggers:
+            for trace_id in trigger['trace_ids']:
+                for plot_item in self.plot_items_list:
+                    if plot_item.getAxis("left").labelText == trace_id:
+                        trigger_trace_temp=self.volcan_stream.select(id=trace_id)
+                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger['duration']*sta_lta_endtime_buffer)
+                        #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
+                        plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
+
+            
 
 
     def create_parameters(self):
 
 
-        TEST_DATE = True 
-
-        if TEST_DATE:
-            start_datetime = UTCDateTime("2022-08-30 16:00:00")
-            end_datetime = UTCDateTime("2022-08-31 16:00:00")
-        else:
-            start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
-            end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
-
-        """
-        xaap_parameters = Parameter.create(
-            
-            name='xaap configuration',type='group',children=[
-            {'name':'load_preset..','type':'list','limits':[]},
-            {'name':'save','type':'action'},
-            {'name':'load','type':'action'},
-            {'name':'parameters','type':'group','children':[
-
-                {'name':'mseed','type':'group','children':[
-                    {'name':'client_id','type':'list','values':['ARCHIVE','FDSN','SEEDLINK','ARCLINK']},
-                    {'name':'server_config_file','type':'str','value':'%s' %('server_configuration.json')}
-                                                                 ]},
-                {'name':'volcan_configuration', 'type':'group','children':[
-                    {'name':'volcanoes_config_file','type':'str','value':'%s' %('volcanoes.json')},
-                    {'name':'stations_config_file','type':'str','value':'%s' %('stations.json')},
-                    {'name':'volcan_name','type':'str','value':'CHILES' }
-                                                                            ]},
-
-                {'name':'dates','type':'group','children':[
-                    {'name':'start','type':'str','value':'%s' %start_datetime },
-                    {'name':'end','type':'str','value':'%s' %end_datetime }
-                                                            ]},
-                                                          
-                {'name':'filter','type':'group','children':[
-                    {'name':'filter_type','type':'list','values':['highpass','bandpass','lowpass']},
-                    {'name':'freq_A','type':'float','value':0.5,'step':0.1,'limits': [0.1, None ]},
-                    {'name':'freq_B','type':'float','value':1.0,'step':0.1,'limits': [0.1, None ]}    ]},
-
-                {'name':'sta_lta','type':'group', 'children': [
-                    {'name':'sta','type':'float','value':0.5,'step':0.5,'limits': [0.1, None ]},                    
-                    {'name':'lta','type':'float','value':10,'step':0.5,'limits': [1, None ]},
-                    {'name':'trigon','type':'float','value':3.5,'step':0.1,'limits': [0.1, None ]},
-                    {'name':'trigoff','type':'float','value':1.0,'step':0.1,'limits': [0.1, None ]},
-                    {'name':'coincidence','type':'float','value':3.0,'step':0.5,'limits': [1, None ]},
-                    {'name':'endtime_extra','type':'float','value':2.5,'step':0.5,'limits': [1, None ]}
-                                                                                                  ]},
-                {'name':'GUI','type':'group','children':[
-                    {'name':'zoom_region_size','type':'float','value':0.10,'step':0.05,'limits':[0.01,1] }
-                                                            ]},
-                                                          ]},
-            {'name':'request_data','type':'action'},                                                           
-            {'name':'pre_process','type':'action'},
-            {'name':'plot_stream','type':'action'},
-            {'name':'detect_triggers','type':'action'},
-            {'name':'classify_triggers','type':'action'}                
-                                                                         ]                                                                         
-                                                                         
-            )
-
-        
-
-
-        
-        logger.info("End of set parameters") 
-        xaap_state = xaap_parameters.saveState()
-
-
-        xaap_parameters.addChild({'name':'request_data','type':'action'} )
-        xaap_parameters.addChild({'name':'pre_process','type':'action'})    
-        xaap_parameters.addChild({'name':'plot_stream','type':'action'})    
-        xaap_parameters.addChild({'name':'detect_triggers','type':'action'})    
-        xaap_parameters.addChild({'name':'classify_triggers','type':'action'})    
-
-
-        """
-
-        #'''
         xaap_parameters = Parameter.create(name='xaap_configuration',type='group',children=[])
         with open('./config/xaap_gui.json', 'r') as f:
             json_data = f.read()
         xaap_parameters.restoreState(json.loads(json_data))
 
+        TEST_DATE = True 
 
+        if TEST_DATE:
+            start_datetime = UTCDateTime("2022-08-30 16:00:00")
+            end_datetime = UTCDateTime("2022-08-30 20:00:00")
+        else:
+            start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
+            end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
 
-        #''' 
-
-        #with open('./config/xaap_gui.json','w') as f:
-        #    json.dump(xaap_parameters.saveState(),f,indent=2)
+        xaap_parameters.child('parameters').child('dates').addChild({'name':'start','type':'str','value':f"{start_datetime}"})
+        xaap_parameters.child('parameters').child('dates').addChild({'name':'end','type':'str','value':f"{end_datetime}"})
 
         xaap_state = xaap_parameters.saveState()
 
         self.json_xaap_state = json.dumps(xaap_state, indent=2)
-        print(xaap_state)
         return xaap_parameters
 
 
@@ -233,52 +182,6 @@ class xaapGUI(QtGui.QWidget):
                 
         except Exception as e:
             logger.error("Error in multiple plots was: %s" %str(e))
-
-
-    def detect_triggers(self):
-
-        sta = self.params['parameters','sta_lta','sta']
-        lta = self.params['parameters','sta_lta','lta']
-        trigon = self.params['parameters','sta_lta','trigon']
-        trigoff = self.params['parameters','sta_lta','trigoff']
-        coincidence = self.params['parameters','sta_lta','coincidence']
-        endtime_extra = self.params['parameters','sta_lta','endtime_extra']
-        self.triggers_traces = []
-
-        self.triggers = coincidence_trigger("recstalta", trigon, trigoff, self.volcan_stream, coincidence, sta=sta, lta=lta)
-        #for i,trg in enumerate(self.triggers):
-        #    logger.info("%s:%s.%s %s" %(i,trg['time'],trg['trace_ids'][0],trg['duration']))
-        triggers_pd = pd.DataFrame(self.triggers)
-
-        detected_triggers_file = Path(xaap_dir,"data/detections") / UTCDateTime.now().strftime("trigger_xaap_%Y.%m.%d.%H.%M.%S.csv")
-        triggers_pd.to_csv(detected_triggers_file)
-        print(triggers_pd)
-        logger.info("Total picks detected: %s " %(len(triggers_pd.stations)))
-        triggers_on =[]
-        trigger_dot_list =[]
-        
-        for i,trigger in enumerate(self.triggers):
-            trigger_start_timestamp = trigger['time'].timestamp
-            trigger_start = trigger['time']
-            trigger_duration = trigger['duration'] * endtime_extra
-            triggers_on.append(trigger_start_timestamp)
-            trigger_dot_list.append(0)
-            
-            trigger_stream_temp=self.volcan_stream.select(id=trigger['trace_ids'][0])
-            trigger_trace = trigger_stream_temp[0].slice(trigger_start, trigger_start + trigger_duration)
-            #MINIMUM TRIGGER LENGTH
-            if trigger_trace.count() > 1:
-                self.triggers_traces.append(trigger_trace)
-
-
-        for trigger in self.triggers:
-            for trace_id in trigger['trace_ids']:
-                for plot_item in self.plot_items_list:
-                    if plot_item.getAxis("left").labelText == trace_id:
-                        trigger_trace_temp=self.volcan_stream.select(id=trace_id)
-                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger_duration)
-                        #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
-                        plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
 
 
 
