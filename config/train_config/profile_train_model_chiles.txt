@@ -1,0 +1,7 @@
+[ENVIRONMENT]
+volcano = chiles
+jobs = 20
+features_file=./data/features/features_chiles_20220902113310.csv
+features_selected_folder=./data/selected_features/
+model_folder=./data/models 
+
