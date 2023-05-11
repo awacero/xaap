@@ -50,7 +50,11 @@ class xaapConfig():
         self.sta_lta_coincidence = xaap_parameter["sta_lta"]["coincidence"]
         self.sta_lta_endtime_buffer = xaap_parameter["sta_lta"]["endtime_buffer"]
 
+        self.deep_learning_model_name = xaap_parameter["deep_learning"]["model_name"]
+        self.deep_learning_model_version = xaap_parameter["deep_learning"]["model_version"]
+        
         self.output_detection_folder = xaap_parameter["output_data"]["output_detection_folder"]
         self.output_classification_folder = xaap_parameter["output_data"]["output_classification_folder"]
+
 
         logger.info("xaapConfig object created")
