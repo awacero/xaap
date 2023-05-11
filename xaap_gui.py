@@ -186,7 +186,16 @@ class xaapGUI(QWidget):
         ###self.picks, self.triggers = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
         ###self.picks, self.detections = detect_trigger.get_triggers_deep_learning(self.xaap_config,self.volcan_stream)
 
-        picks_detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
+        picks,detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
+
+        if len(picks) >0:
+            self.picks = picks
+            self.plot_picks()
+        if len(detections) > 0:
+            self.triggers = detections
+            self.plot_triggers
+        
+        '''
         print(picks_detections)
         if len(picks_detections) == 2:
             self.picks = picks_detections[0]
@@ -202,7 +211,7 @@ class xaapGUI(QWidget):
             if isinstance(picks_detections[0],sb_detection):
                 self.triggers = picks_detections
                 self.plot_triggers()
-
+        '''
         #self.plot_picks()
         #self.plot_triggers()
 
@@ -283,8 +292,8 @@ class xaapGUI(QWidget):
         if TEST_DATE:
             #start_datetime = UTCDateTime("2022-08-30 16:00:00")
             #end_datetime = UTCDateTime("2022-08-30 17:00:00")
-            start_datetime = UTCDateTime("2023-05-06 13:00:00")
-            end_datetime = UTCDateTime("2023-05-06 18:00:00")
+            start_datetime = UTCDateTime("2023-02-22 00:00:00")
+            end_datetime = UTCDateTime("2023-02-23 00:00:00")
         else:
             start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
             end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
@@ -298,24 +307,6 @@ class xaapGUI(QWidget):
         self.json_xaap_state = json.dumps(xaap_state, indent=2)
 
         return xaap_parameters
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     def plot_stream(self):
@@ -353,79 +344,86 @@ class xaapGUI(QWidget):
 
     def classify_triggers(self):
 
-        ##leer esto desde la configuracion
-        ## leer solo las mejores caracteristicas?
-        ####TODO: CAMBIAR A CONFIGRACION 
-        feature_config = {"features_file":"%s/config/features/features_00.json" %xaap_dir,
-                    #"domains":"time spectral cepstral"}
-                    "domains":"spectral cepstral"}
-        #tungu_clf= pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
-        #chiles_rf_20230410092541
-        #volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20220902115108.pkl'),'rb'))
-        volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20230410092541.pkl'),'rb'))
-
-        classified_triggers_file = Path(xaap_dir,"data/classifications") / UTCDateTime.now().strftime("out_xaap_%Y.%m.%d.%H.%M.%S.txt")
-        classification_file = open(classified_triggers_file,'a+')
-        #Como guardar categorias en  el modelo?
-        #categories = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
-        categories = ['LP', 'VT']
-        features = FeatureVector(feature_config, verbatim=2)
-        input_data = []
-
-        trigger_dir = Path(xaap_dir,"trigger")
-
-        logger.info("start feature calculation")
-        for trace in self.triggers_traces:
-            print("!####")
-            print(trace)
-            ##Modificar file code para que incluya la ventana de end_time
-            trace_window = int(trace.stats.endtime - trace.stats.starttime)
-            file_code = "%s.%s.%s.%s.%s.%s" %(trace.stats.network,trace.stats.station,trace.stats.location,trace.stats.channel,trace.stats.starttime.strftime("%Y.%m.%d.%H.%M.%S"),trace_window)
-            features.compute(trace.data,trace.stats.sampling_rate)
-            row = np.append(file_code, features.featuresValues)
-            input_data.append(row)
-
-            '''
-            try:
-                trace.write("%s/%s.mseed" %(trigger_dir,file_code),format="MSEED")
-
-            except Exception as e:
-                print("error in write")
-            
-            '''
-
-        '''Create pandas data frame from features vectors'''
-        column_names = ['data_code']
-        data = pd.DataFrame(input_data)
-        rows_length,column_length = data.shape
-
-        for i in range(column_length - 1):
-            column_names.append("f_%s" %i)
-
-        data.columns = column_names
-        data.columns = data.columns.str.replace(' ', '')
-
-        x_no_scaled = data.iloc[:,1:].to_numpy()
-
-        scaler = StandardScaler()
-        x = scaler.fit_transform(x_no_scaled)
-        data_scaled = pd.DataFrame(x,columns=data.columns[1:])
-
-        print(data_scaled.shape)
-
-        y_pred=volcano_classifier_model.predict(data_scaled)
-
-        print(type(y_pred))
-        print(y_pred.shape)
 
 
 
+        if self.triggers:
+
+            self.triggers_traces = detect_trigger.create_trigger_traces(self.xaap_config,self.volcan_stream,self.triggers)
 
 
-        for i in range(rows_length):
-            prediction = "%s,%s\n" %(data.iloc[i,0],categories[int(y_pred[i])])
-            logger.info(prediction)
-            classification_file.write(prediction)
+            ##leer esto desde la configuracion
+            ## leer solo las mejores caracteristicas?
+            ####TODO: CAMBIAR A CONFIGRACION 
+            feature_config = {"features_file":"%s/config/features/features_00.json" %xaap_dir,
+                        #"domains":"time spectral cepstral"}
+                        "domains":"spectral cepstral"}
+            #tungu_clf= pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
+            #chiles_rf_20230410092541
+            #volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20220902115108.pkl'),'rb'))
+            volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20230410092541.pkl'),'rb'))
+
+            classified_triggers_file = Path(xaap_dir,"data/classifications") / UTCDateTime.now().strftime("out_xaap_%Y.%m.%d.%H.%M.%S.csv")
+            classification_file = open(classified_triggers_file,'a+')
+            #Como guardar categorias en  el modelo?
+            #categories = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
+            categories = ['LP', 'VT']
+            features = FeatureVector(feature_config, verbatim=2)
+            input_data = []
+
+
+            logger.info("start feature calculation")
+            for trace in self.triggers_traces:
+                print("!####")
+                print(trace)
+                ##Modificar file code para que incluya la ventana de end_time
+                trace_window = int(trace.stats.endtime - trace.stats.starttime)
+                file_code = "%s.%s.%s.%s.%s.%s" %(trace.stats.network,trace.stats.station,trace.stats.location,trace.stats.channel,trace.stats.starttime.strftime("%Y.%m.%d.%H.%M.%S"),trace_window)
+                features.compute(trace.data,trace.stats.sampling_rate)
+                row = np.append(file_code, features.featuresValues)
+                input_data.append(row)
+
+                '''
+                try:
+                    trace.write("%s/%s.mseed" %(trigger_dir,file_code),format="MSEED")
+
+                except Exception as e:
+                    print("error in write")
+                
+                '''
+
+            '''Create pandas data frame from features vectors'''
+            column_names = ['data_code']
+            data = pd.DataFrame(input_data)
+            rows_length,column_length = data.shape
+
+            for i in range(column_length - 1):
+                column_names.append("f_%s" %i)
+
+            data.columns = column_names
+            data.columns = data.columns.str.replace(' ', '')
+
+            x_no_scaled = data.iloc[:,1:].to_numpy()
+
+            scaler = StandardScaler()
+            x = scaler.fit_transform(x_no_scaled)
+            data_scaled = pd.DataFrame(x,columns=data.columns[1:])
+
+            print(data_scaled.shape)
+
+            y_pred=volcano_classifier_model.predict(data_scaled)
+
+            print(type(y_pred))
+            print(y_pred.shape)
+
+
+
+
+
+            for i in range(rows_length):
+                prediction = "%s,%s\n" %(data.iloc[i,0],categories[int(y_pred[i])])
+                logger.info(prediction)
+                classification_file.write(prediction)
     
     
 
@@ -543,21 +541,6 @@ class xaapGUI(QWidget):
 
 
 
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
     def set_p1_using_p2(self):
         
         minX,maxX = self.window_region.getRegion()
@@ -572,11 +555,6 @@ class xaapGUI(QWidget):
 
 ##crear nueva ventana que cargue el archivo de texto en tablas y plotee los triggers sobre la señal
 ##con etiquetas y con ventana 
-
-
-
-
-
 
 
 

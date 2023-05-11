@@ -74,24 +74,16 @@ def get_triggers_deep_learning(xaap_config, volcan_stream):
 
     except Exception as e:
         logger.error(f"Error while creating deep learning model from seisbench: {model_name} and {model_version}: {e}")
-        return [],[]
+        return []
 
     try:
         annotations = model.annotate(volcan_stream)
         if len(annotations)!=0:
 
             picks_detections = model.classify(volcan_stream)
-
-            '''
-            picks_df = pd.DataFrame(vars(p) for p in picks)
-            detected_picks_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"picks_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
-            picks_df.to_csv(detected_picks_file)           
-
-            triggers_df = pd.DataFrame(vars(d) for d in detections)
-            detected_triggers_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"triggers_raw_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
-            triggers_df.to_csv(detected_triggers_file)
-            '''
+            
             return picks_detections
+
 
     except Exception as e:
         logger.error(f"Error using deep learning model from seisbench: {model_name} and {model_version}. Error: {e}")
@@ -138,35 +130,34 @@ def coincidence_trigger_deep_learning(xaap_config, stream,
 
         picks_detections = get_triggers_deep_learning(xaap_config,Stream(tr))
 
-        print("###CTM")
-        print(picks_detections)
-        print(type(picks_detections))
 
-        for objeto in picks_detections:
-            print(objeto)
+        if picks_detections is not None:
+            
+            if len(picks_detections) != 0:
 
+                if isinstance(picks_detections,tuple) and len(picks_detections) == 2:
+                    logger.info(f"Model {model_name} for picks and detections" )
+                    picks.extend(picks_detections[0])
+                    tmp_triggers = picks_detections[1]
+                else:
 
-        if len(picks_detections) != 0:
-
-            if isinstance(picks_detections,tuple) and len(picks_detections) == 2:
-                logger.info(f"Model {model_name} for picks and detections" )
-                picks.extend(picks_detections[0])
-                tmp_triggers = picks_detections[1]
-            else:
-
-                if isinstance(picks_detections[0],sb_pick):
-                    logger.info(f"Model {model_name} just for picks")
-                    picks.extend(picks_detections)
-                    tmp_triggers=[]
-                
-                if isinstance(picks_detections[0],sb_detection):
-                    logger.info(f"Model {model_name} just for detections")
-                    picks = []
-                    tmp_triggers = picks_detections
+                    if isinstance(picks_detections[0],sb_pick):
+                        logger.info(f"Model {model_name} just for picks")
+                        picks.extend(picks_detections)
+                        tmp_triggers=[]
+                    
+                    if isinstance(picks_detections[0],sb_detection):
+                        logger.info(f"Model {model_name} just for detections")
+                        picks = []
+                        tmp_triggers = picks_detections
 
 
         else:
             logger.info("No pick or detection made")
+            print(tr)
+            print("RECIBIDO")
+            print(picks_detections)
+            print(type(picks_detections))
             pass
 
 
@@ -262,64 +253,27 @@ def coincidence_trigger_deep_learning(xaap_config, stream,
         coincidence_triggers.append(event)
         last_off_time = off
 
-    
 
-    if isinstance(picks_detections,tuple) and len(picks_detections) == 2:
-        print("###")
-        print(picks)
+
+    if len(picks) > 0:
+
         logger.info(f"Model {model_name} store picks and detections" )
         picks_df = pd.DataFrame(vars(p) for p in picks)
         detected_picks_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"picks_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
         picks_df.to_csv(detected_picks_file)           
 
+    if len(tmp_triggers) > 0:
         triggers_df = pd.DataFrame(vars(d) for d in tmp_triggers)
         detected_triggers_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"triggers_raw_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
         triggers_df.to_csv(detected_triggers_file)
 
+    if len(coincidence_triggers)>0:
+
         coincidence_triggers_df = pd.DataFrame(coincidence_triggers)
         detected_triggers_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"triggers_coincidence_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
         coincidence_triggers_df.to_csv(detected_triggers_file)
-        return picks,coincidence_triggers
-
-    else:
-
-        if isinstance(picks_detections[0],sb_pick):
-            logger.info(f"Model {model_name} store picks")
-            print(picks)
-            picks_df = pd.DataFrame(vars(p) for p in picks)
-            detected_picks_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"picks_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
-            picks_df.to_csv(detected_picks_file)         
-            return picks
-        
-        if isinstance(picks_detections[0],sb_detection):
-            logger.info(f"Model {model_name} just for detections")
-            triggers_df = pd.DataFrame(vars(d) for d in tmp_triggers)
-            detected_triggers_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"triggers_raw_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
-            triggers_df.to_csv(detected_triggers_file)
-
-            coincidence_triggers_df = pd.DataFrame(coincidence_triggers)
-            detected_triggers_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"triggers_coincidence_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
-            coincidence_triggers_df.to_csv(detected_triggers_file)
-            return coincidence_trigger
-
-    '''
-    picks_df = pd.DataFrame(vars(p) for p in picks)
-    detected_picks_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"picks_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
-    picks_df.to_csv(detected_picks_file)           
-
-    triggers_df = pd.DataFrame(vars(d) for d in tmp_triggers)
-    detected_triggers_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"triggers_raw_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
-    triggers_df.to_csv(detected_triggers_file)
-
-    coincidence_triggers_df = pd.DataFrame(coincidence_triggers)
-    detected_triggers_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"triggers_coincidence_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
-    coincidence_triggers_df.to_csv(detected_triggers_file)
 
     return picks,coincidence_triggers
-
-    '''
-
-
 
 
 
