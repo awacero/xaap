@@ -1,0 +1,19 @@
+{
+"BMAS":{        "net":"EC",     "cod":"BMAS",   "loc":[""],     "cha":["HHZ","BHZ"]},
+"BMOR":{        "net":"EC",     "cod":"BMOR",   "loc":[""],     "cha":["BHZ"]},
+"BNAS":{        "net":"EC",     "cod":"BNAS",   "loc":[""],     "cha":["HHZ","HHE","HHN"]},
+"BONI":{        "net":"EC",     "cod":"BONI",   "loc":[""],     "cha":["HHZ"]},
+"BPAT":{        "net":"EC",     "cod":"BPAT",   "loc":[""],     "cha":["BHZ"]},
+"BREF":{        "net":"EC",     "cod":"BREF",   "loc":[""],     "cha":["BHZ","BHN","BHE"]},
+"CHMA":{        "net":"EC",     "cod":"CHMA",   "loc":[""],     "cha":["HHZ, BDF"]},
+"CHSH":{        "net":"EC",     "cod":"CHSH",   "loc":[""],     "cha":["HHZ"]},
+"CO1V":{        "net":"EC",     "cod":"CO1V",   "loc":[""],     "cha":["HHN","HHE"]},
+"CONE":{        "net":"EC",     "cod":"CONE",   "loc":[""],     "cha":["SHZ"]},
+"COTA":{        "net":"EC",     "cod":"COTA",   "loc":[""],     "cha":["HHZ"]},
+"CUIC":{        "net":"EC",     "cod":"CUIC",   "loc":[""],     "cha":["HHZ"]},
+"CUSE":{        "net":"EC",     "cod":"CUSE",   "loc":[""],     "cha":["HHZ"]},
+"CUSW":{        "net":"EC",     "cod":"CUSW",   "loc":[""],     "cha":["HHZ"]},
+"RUNA":{        "net":"EC",     "cod":"RUNA",   "loc":[""],     "cha":["HHZ","BHE","BHN"]},
+"SAGA":{        "net":"EC",     "cod":"SAGA",   "loc":[""],     "cha":["HHZ"]},
+"SAGA_01":{     "net":"EC",     "cod":"SAGA",   "loc":["01"],     "cha":["BDF"]}
+}

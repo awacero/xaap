@@ -1,0 +1,577 @@
+{
+  "type": "group",
+  "readonly": false,
+  "visible": true,
+  "enabled": true,
+  "renamable": false,
+  "removable": false,
+  "strictNaming": false,
+  "expanded": true,
+  "syncExpanded": false,
+  "title": null,
+  "name": "xaap configuration",
+  "value": null,
+  "default": null,
+  "children": {
+
+
+
+    "parameters": {
+      "type": "group",
+      "readonly": false,
+      "visible": true,
+      "enabled": true,
+      "renamable": false,
+      "removable": false,
+      "strictNaming": false,
+      "expanded": true,
+      "syncExpanded": false,
+      "title": null,
+      "name": "parameters",
+      "value": null,
+      "default": null,
+      "children": {
+        "mseed": {
+          "type": "group",
+          "readonly": false,
+          "visible": true,
+          "enabled": true,
+          "renamable": false,
+          "removable": false,
+          "strictNaming": false,
+          "expanded": false,
+          "syncExpanded": false,
+          "title": null,
+          "name": "mseed",
+          "value": null,
+          "default": null,
+          "children": {
+            "client_id": {
+              "type": "list",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "client_id",
+              "values": [
+                "ARCHIVE",
+                "FDSN",
+                "SEEDLINK",
+                "ARCLINK"
+              ],
+              "limits": [
+                "ARCHIVE",
+                "FDSN",
+                "SEEDLINK",
+                "ARCLINK"
+              ],
+              "value": "ARCHIVE",
+              "default": null
+            },
+            "server_config_file": {
+              "type": "str",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "server_config_file",
+              "value": "server_configuration.json",
+              "default": "server_configuration.json"
+            }
+          }
+        },
+        "volcan_configuration": {
+          "type": "group",
+          "readonly": false,
+          "visible": true,
+          "enabled": true,
+          "renamable": false,
+          "removable": false,
+          "strictNaming": false,
+          "expanded": true,
+          "syncExpanded": false,
+          "title": null,
+          "name": "volcan_configuration",
+          "value": null,
+          "default": null,
+          "children": {
+            "volcanoes_config_file": {
+              "type": "str",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "volcanoes_config_file",
+              "value": "volcanoes.json",
+              "default": "volcanoes.json"
+            },
+            "stations_config_file": {
+              "type": "str",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "stations_config_file",
+              "value": "stations.json",
+              "default": "stations.json"
+            },
+            "volcan_name": {
+              "type": "str",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "volcan_name",
+              "value": "COTOPAXI",
+              "default": "CHILES"
+            }
+          }
+        },
+        
+                "dates": {
+          "type": "group",
+          "readonly": false,
+          "visible": true,
+          "enabled": true,
+          "renamable": false,
+          "removable": false,
+          "strictNaming": false,
+          "expanded": true,
+          "syncExpanded": false,
+          "title": null,
+          "name": "dates",
+          "value": null,
+          "default": null,
+          "children": {}},    
+        
+        
+        
+        "filter": {
+          "type": "group",
+          "readonly": false,
+          "visible": true,
+          "enabled": true,
+          "renamable": false,
+          "removable": false,
+          "strictNaming": false,
+          "expanded": false,
+          "syncExpanded": false,
+          "title": null,
+          "name": "filter",
+          "value": null,
+          "default": null,
+          "children": {
+            "filter_type": {
+              "type": "list",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": false,
+              "syncExpanded": false,
+              "title": null,
+              "name": "filter_type",
+              "values": [
+                "highpass",
+                "bandpass",
+                "lowpass"
+              ],
+              "limits": [
+                "highpass",
+                "bandpass",
+                "lowpass"
+              ],
+              "value": "highpass",
+              "default": null
+            },
+            "freq_A": {
+              "type": "float",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "freq_A",
+              "value": 0.5,
+              "step": 0.1,
+              "limits": [
+                0.1,
+                null
+              ],
+              "default": 0.5
+            },
+            "freq_B": {
+              "type": "float",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "freq_B",
+              "value": 1.0,
+              "step": 0.1,
+              "limits": [
+                0.1,
+                null
+              ],
+              "default": 1.0
+            }
+          }
+        },
+        "sta_lta": {
+          "type": "group",
+          "readonly": false,
+          "visible": true,
+          "enabled": true,
+          "renamable": false,
+          "removable": false,
+          "strictNaming": false,
+          "expanded": false,
+          "syncExpanded": false,
+          "title": null,
+          "name": "sta_lta",
+          "value": null,
+          "default": null,
+          "children": {
+            "sta": {
+              "type": "float",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "sta",
+              "value": 0.5,
+              "step": 0.5,
+              "limits": [
+                0.1,
+                null
+              ],
+              "default": 0.5
+            },
+            "lta": {
+              "type": "float",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "lta",
+              "value": 10.0,
+              "step": 0.5,
+              "limits": [
+                1,
+                null
+              ],
+              "default": 10.0
+            },
+            "trigon": {
+              "type": "float",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "trigon",
+              "value": 3.5,
+              "step": 0.1,
+              "limits": [
+                0.1,
+                null
+              ],
+              "default": 3.5
+            },
+            "trigoff": {
+              "type": "float",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "trigoff",
+              "value": 1.0,
+              "step": 0.1,
+              "limits": [
+                0.1,
+                null
+              ],
+              "default": 1.0
+            },
+            "coincidence": {
+              "type": "float",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "coincidence",
+              "value": 2.0,
+              "step": 0.5,
+              "limits": [
+                1,
+                null
+              ],
+              "default": 3.0
+            },
+            "endtime_buffer": {
+              "type": "float",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "endtime_buffer",
+              "value": 2.5,
+              "step": 0.5,
+              "limits": [
+                1,
+                null
+              ],
+              "default": 2.5
+            }
+          }
+        },
+        "deep_learning_picker":{
+          "type":"group",
+          "expanded":true,
+          "children":{
+            "model_name":{
+              "type":"str",
+              "visible":true,
+              "value":"EQTransformer"
+            },
+            "model_version":{
+              "type":"str",
+              "visible":true,
+              "value":"original"
+            }
+          }
+        },
+
+        "output_data":{
+          "type":"group",
+          "expanded":false,
+          "children":{
+            "output_detection_folder":{
+              "type":"str",
+              "visible":true,
+              "value":"/home/wacero/proyectos_codigo/xaap/data/detections/"
+            },
+            "output_classification_folder":{
+              "type":"str",
+              "visible":true,
+              "value":"/home/wacero/proyectos_codigo/xaap/data/classifications/"
+            }
+          }
+        },
+        "gui": {
+          "type": "group",
+          "readonly": false,
+          "visible": true,
+          "enabled": true,
+          "renamable": false,
+          "removable": false,
+          "strictNaming": false,
+          "expanded": true,
+          "syncExpanded": false,
+          "title": null,
+          "name": "gui",
+          "value": null,
+          "default": null,
+          "children": {
+            "zoom_region_size": {
+              "type": "float",
+              "readonly": false,
+              "visible": true,
+              "enabled": true,
+              "renamable": false,
+              "removable": false,
+              "strictNaming": false,
+              "expanded": true,
+              "syncExpanded": false,
+              "title": null,
+              "name": "zoom_region_size",
+              "value": 0.1,
+              "step": 0.05,
+              "limits": [
+                0.01,
+                1
+              ],
+              "default": 0.1
+            }
+          }
+        }
+      }
+    },
+    "update_parameters": {
+      "type": "action",
+      "readonly": false,
+      "visible": true,
+      "enabled": true,
+      "renamable": false,
+      "removable": false,
+      "strictNaming": false,
+      "expanded": true,
+      "syncExpanded": false,
+      "title": null,
+      "name": "update_parameters",
+      "value": null,
+      "default": null
+    },
+
+    "request_data": {
+      "type": "action",
+      "readonly": false,
+      "visible": true,
+      "enabled": true,
+      "renamable": false,
+      "removable": false,
+      "strictNaming": false,
+      "expanded": true,
+      "syncExpanded": false,
+      "title": null,
+      "name": "request_data",
+      "value": null,
+      "default": null
+    },
+
+    
+
+    "pre_process": {
+      "type": "action",
+      "readonly": false,
+      "visible": true,
+      "enabled": true,
+      "renamable": false,
+      "removable": false,
+      "strictNaming": false,
+      "expanded": true,
+      "syncExpanded": false,
+      "title": null,
+      "name": "pre_process",
+      "value": null,
+      "default": null
+    },
+    "plot_stream": {
+      "type": "action",
+      "readonly": false,
+      "visible": true,
+      "enabled": true,
+      "renamable": false,
+      "removable": false,
+      "strictNaming": false,
+      "expanded": true,
+      "syncExpanded": false,
+      "title": null,
+      "name": "plot_stream",
+      "value": null,
+      "default": null
+    },
+    "detection_sta_lta": {
+      "type": "action",
+      "readonly": false,
+      "visible": true,
+      "enabled": true,
+      "renamable": false,
+      "removable": false,
+      "strictNaming": false,
+      "expanded": true,
+      "syncExpanded": false,
+      "title": null,
+      "name": "detection_sta_lta",
+      "value": null,
+      "default": null
+    },
+    "detection_deep_learning": {
+      "type": "action",
+      "readonly": false,
+      "visible": true,
+      "enabled": true,
+      "renamable": false,
+      "removable": false,
+      "strictNaming": false,
+      "expanded": true,
+      "syncExpanded": false,
+      "title": null,
+      "name": "detection_deep_learning",
+      "value": null,
+      "default": null
+    },
+
+
+    "classify_triggers": {
+      "type": "action",
+      "readonly": false,
+      "visible": true,
+      "enabled": true,
+      "renamable": false,
+      "removable": false,
+      "strictNaming": false,
+      "expanded": true,
+      "syncExpanded": false,
+      "title": null,
+      "name": "classify_triggers",
+      "value": null,
+      "default": null
+    }
+  }
+}
