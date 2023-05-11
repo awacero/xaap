@@ -1,7 +1,8 @@
 Program to automatic classify volcanic events
 
 # Installation
-Execute the commands as normal user NOT root
+Execute the commands as normal user NOT as root
+
 ## Create the conda environment
 
 ``` bash
@@ -20,21 +21,22 @@ pip install scikit-learn
 pip install aaa_features get_mseed_data 
 ```
 
-conda create -n xaap python pyqtgraph=0.12.3 pyqt obspy pandas scikit-learn=1.0 mlxtend  -y
-conda activate xaap
-
-
-
-
+## Clone XAAP code
 ```
-
-
-# Clone XAAP code
-```
+cd /LOCAL_PATH/
 git clone https://github.com/awacero/xaap.git
 
 ```
+## Copy,modify or create the configuration files (json files)
+``` bash
+cd /LOCAL_PATH/xaap/config
 
+EXAMPLE.xaap_gui.json
+EXAMPLE.server_configuration.json
+EXAMPLE.volcanoes.json
+EXAMPLE.stations.json
+
+```
 
 # Run XAAP
 ```
