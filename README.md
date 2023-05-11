@@ -1,22 +1,23 @@
 Program to automatic classify volcanic events
 
 # Installation
+Execute the commands as normal user NOT root
 ## Create the conda environment
 
 ``` bash
-$ conda config --add channels conda-forge
-$ conda create --name igxaap python=3.10 
+conda config --add channels conda-forge
+conda create --name igxaap python=3.10 
 ```
 
 ## Install the requirements libraries 
 
 ``` bash
-$ conda activate igxaap  
-$ pip install torch==1.12.1 seisbench 
-$ conda install pyqtgraph pyqtchardet
-$ pip install scikit-learn 
+conda activate igxaap  
+pip install torch==1.12.1 seisbench 
+conda install pyqtgraph pyqtchardet
+pip install scikit-learn 
 ##Install scikit-learn using pip or LD_PRELOAD generates an error ###
-$ pip install aaa_features get_mseed_data 
+pip install aaa_features get_mseed_data 
 ```
 
 conda create -n xaap python pyqtgraph=0.12.3 pyqt obspy pandas scikit-learn=1.0 mlxtend  -y
