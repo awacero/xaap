@@ -64,3 +64,10 @@ The last command generates a PKL model in data/models folder
 guagua_rf_20211007144655.pkl
 ```
 
+## Test Seisbench models
+```
+conda activate xaap 
+cd xaap
+python dl_models_test/seisbench_models_test.py config/dl_models_test_config/profile_dl_models_test_chiles.txt 1 10
+```
+
