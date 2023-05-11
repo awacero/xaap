@@ -14,7 +14,7 @@ conda create --name igxaap python=3.10
 ``` bash
 conda activate igxaap  
 pip install torch==1.12.1 seisbench 
-conda install pyqtgraph pyqtchardet
+conda install pyqtgraph pyqt chardet
 pip install scikit-learn 
 ##Install scikit-learn using pip or LD_PRELOAD generates an error ###
 pip install aaa_features get_mseed_data 
