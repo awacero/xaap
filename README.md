@@ -1,5 +1,7 @@
 Program to automatic classify volcanic events
 
+![XAAP gui](./images/xaap_gui_1.png)
+
 # Installation
 Execute the commands as normal user NOT as root
 
@@ -70,7 +72,13 @@ python train/create_feature_set.py config/profile_create_feature_guagua.txt 1 22
 ```
 The features computed are stored in xaap/data/features/features_guagua_UNIQUEID.csv
 
-## Train the model 
+
+## Manual checking the detected picks
+
+![checking interface](./images/xaap_check_manual_1.jpeg)
+
+
+## Train models 
 
 ```
 conda activate xaap 
