@@ -113,6 +113,7 @@ def coincidence_trigger_deep_learning(xaap_config, stream,
     # the single station triggering
     triggers = []
     picks =[]
+    tmp_triggers = []
     # prepare kwargs for trigger_onset
     kwargs = {'max_len_delete': delete_long_trigger}
     for tr in stream:
@@ -154,10 +155,7 @@ def coincidence_trigger_deep_learning(xaap_config, stream,
 
         else:
             logger.info("No pick or detection made")
-            print(tr)
-            print("RECIBIDO")
-            print(picks_detections)
-            print(type(picks_detections))
+
             pass
 
 
@@ -170,8 +168,7 @@ def coincidence_trigger_deep_learning(xaap_config, stream,
                 idx = tr.times().searchsorted(trigger.start_time)
                 cft_peak = tr.data[idx]
                 cft_std = 0
-            print(tr.id)
-            print(trigger.trace_id)
+
 
             on = trigger.start_time
             off = trigger.end_time
