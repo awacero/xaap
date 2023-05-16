@@ -77,7 +77,7 @@ The features computed are stored in xaap/data/features/features_guagua_UNIQUEID.
 
 ![checking interface](./images/xaap_check_manual_1.jpeg)
 
-## XAAP running video
+## XAAP running youtube video
 
 
 [![XAAP running](https://img.youtube.com/vi/faanQjSWj2Q/0.jpg)](https://youtu.be/faanQjSWj2Q)
