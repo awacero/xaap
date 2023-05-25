@@ -193,7 +193,8 @@ class xaapGUI(QWidget):
             self.plot_picks()
         if len(detections) > 0:
             self.triggers = detections
-            self.plot_triggers
+            self.plot_triggers()
+            logger.info(f"Coincidence triggers found: {len(self.triggers)}")
         
         '''
         print(picks_detections)
@@ -288,12 +289,12 @@ class xaapGUI(QWidget):
         xaap_parameters.restoreState(json.loads(json_data))
  
         # Set the start and end datetime parameters for testing or based on the current time
-        TEST_DATE = True
+        TEST_DATE = False
         if TEST_DATE:
             #start_datetime = UTCDateTime("2022-08-30 16:00:00")
             #end_datetime = UTCDateTime("2022-08-30 17:00:00")
-            start_datetime = UTCDateTime("2023-05-12 06:15:00")
-            end_datetime = UTCDateTime("2023-05-12 07:15:00")
+            start_datetime = UTCDateTime("2023-02-22 00:00:00")
+            end_datetime = UTCDateTime("2023-02-22 01:00:00")
         else:
             start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
             end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
