@@ -292,8 +292,8 @@ class xaapGUI(QWidget):
         if TEST_DATE:
             #start_datetime = UTCDateTime("2022-08-30 16:00:00")
             #end_datetime = UTCDateTime("2022-08-30 17:00:00")
-            start_datetime = UTCDateTime("2023-02-22 00:00:00")
-            end_datetime = UTCDateTime("2023-02-23 00:00:00")
+            start_datetime = UTCDateTime("2023-05-12 06:15:00")
+            end_datetime = UTCDateTime("2023-05-12 07:15:00")
         else:
             start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
             end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
