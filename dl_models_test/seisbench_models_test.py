@@ -15,7 +15,7 @@ from seisbench.util.annotations import Pick, Detection
 
 ###DETECTAR LA RED DE LA ESTACION USANDO EL ARCHIVO STATIONS.JSON 
 ## CREAR LAS CARPETAS FEATURES  SI NO EXISTEN 
-def detect_pick_dl(sipass_row,mseed_client_id,client,network,location,sb_model):
+def detect_pick_dl(sipass_row,mseed_client_id,client,network,location,sb_model,output_detection_file):
 
 
 
@@ -43,13 +43,18 @@ def detect_pick_dl(sipass_row,mseed_client_id,client,network,location,sb_model):
         classify_result = sb_model.classify(temp_stream)
         print(f"TIPO DE OBJETO:  {type(classify_result)}")
 
-
         if isinstance(classify_result, list):
             if len(classify_result) > 0:
                 if isinstance(classify_result[0],Pick):
                     print("lista de: PICKS")
-                    for i in classify_result:
-                        print(i)
+                    for pick in classify_result:
+                        print(pick)
+                        coda = pick.end_time - pick.start_time
+                        row = f"{pick.start_time},{pick.end_time},{pick.peak_time},{pick.peak_value},{pick.phase},{pick.trace_id},{coda},1\n"
+                        print(row)
+                        feature_file = open(output_detection_file,'+a')
+                        feature_file.write(row)
+                        feature_file.flush()
 
                 elif isinstance(classify_result[0],Detection):
                     print("lista de: DETECTIONS")
@@ -61,54 +66,29 @@ def detect_pick_dl(sipass_row,mseed_client_id,client,network,location,sb_model):
             picks,detections = classify_result
             print("PICKS")
             for pick in picks:
+                
+                print("PICO PICO PICO")
                 print(pick)
+                coda = pick.end_time - pick.start_time
+
+                row = f"{pick.start_time},{pick.end_time},{pick.peak_time},{pick.peak_value},{pick.phase},{pick.trace_id},{coda},1\n"
+                print(row)
+                feature_file = open(output_detection_file,'+a')
+                feature_file.write(row)
+                feature_file.flush()
+
+
+
+
             print("DETECTIONS")
             for detection in detections:
-                print(detection)
+                coda = detection.end_time - detection.start_time
+                row = f"{detection.start_time},{detection.end_time},0,{detection.peak_value},0,{detection.trace_id},{coda},1\n"
+                print(row)
+                feature_file = open(f"{output_detection_file}_detection.csv",'+a')
+                feature_file.write(row)
+                feature_file.flush()
 
-        '''
-        for i in picks_detections:
-            print(f"objetos: {type(i)}")
-
-            if isinstance(i,Pick):
-                print("OBJETO PICK")
-
-                print(i)
-                print(i.trace_id)
-                print(i.start_time)
-                print(i.peak_time)
-                print(i.end_time)
-            for j in i:
-                print(f"objeto {type(j)}")
-                print(j)
-        '''
-
-        '''
-        annotations = sb_model.annotate(temp_stream)
-
-        if len(annotations) != 0:
-
-            for ann in annotations:
-                print("ANNOTATION OBJECT")
-                print(ann)
-                print()
-
-            picks_detections = sb_model.classify(temp_stream)
-            """
-            for pick in picks:
-                print(pick)
-                
-
-            #print("\nDetections:")    
-            for detection in detections:
-                print(detection)
-            """
-
-            print(picks_detections)
-        else:
-            print(f"No pick for {temp_stream}")
-
-        '''
 
         ''' 
         # Get the sampling rate from the waveform data stream
@@ -193,7 +173,7 @@ def main():
             raise Exception(f"Error reading SIPASS file: {e}")
 
         try:
-            output_feature_file = f"{output_detection_folder}/_{volcano}_{model_name}_{model_version}_{unique_id}.csv"
+            output_detection_file = f"{output_detection_folder}/_{volcano}_{model_name}_{model_version}_{unique_id}.csv"
 
         except Exception as e:
             raise Exception(f"Error creating feature file: {e}")
@@ -222,7 +202,7 @@ def main():
         pool = multiprocessing.get_context('spawn').Pool(processes=cores)
 
         results = [pool.apply_async(detect_pick_dl, args=([row, mseed_client_id, client, network, location,
-                                                         sb_model]), callback=callback_function) for i, row in sipass_data.iloc[start_row:end_row].iterrows()]
+                                                         sb_model,output_detection_file]), callback=callback_function) for i, row in sipass_data.iloc[start_row:end_row].iterrows()]
 
         for i, res in enumerate(results):
             try:

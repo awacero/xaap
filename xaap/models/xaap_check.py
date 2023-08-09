@@ -40,7 +40,7 @@ def load_csv_file(self):
         try:
             classification_file_path = Path(self.classifications_path ,\
                                             self.params['Classification file']+
-                                            '.txt')
+                                            '.csv')
             predicted_data  = pd.read_csv(classification_file_path,sep=',')
             rows_length,column_length = predicted_data.shape
             column_names = ['trigger_code','prediction']

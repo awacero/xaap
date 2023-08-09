@@ -52,6 +52,7 @@ class xaapConfig():
 
         self.deep_learning_model_name = xaap_parameter["deep_learning"]["model_name"]
         self.deep_learning_model_version = xaap_parameter["deep_learning"]["model_version"]
+        self.deep_learning_coincidence_picks = int(xaap_parameter["deep_learning"]["coincidence_picks"])
         
         self.output_detection_folder = xaap_parameter["output_data"]["output_detection_folder"]
         self.output_classification_folder = xaap_parameter["output_data"]["output_classification_folder"]

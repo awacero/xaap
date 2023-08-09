@@ -186,7 +186,8 @@ class xaapGUI(QWidget):
         ###self.picks, self.triggers = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
         ###self.picks, self.detections = detect_trigger.get_triggers_deep_learning(self.xaap_config,self.volcan_stream)
 
-        picks,detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
+        ####picks,detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
+        picks,detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream)
 
         if len(picks) >0:
             self.picks = picks
@@ -289,12 +290,12 @@ class xaapGUI(QWidget):
         xaap_parameters.restoreState(json.loads(json_data))
  
         # Set the start and end datetime parameters for testing or based on the current time
-        TEST_DATE = False
+        TEST_DATE = True
         if TEST_DATE:
-            #start_datetime = UTCDateTime("2022-08-30 16:00:00")
-            #end_datetime = UTCDateTime("2022-08-30 17:00:00")
-            start_datetime = UTCDateTime("2023-02-22 00:00:00")
-            end_datetime = UTCDateTime("2023-02-22 01:00:00")
+            start_datetime = UTCDateTime("2019-01-01 18:00:00")
+            end_datetime = UTCDateTime("2019-01-01  19:00:00")
+            #start_datetime = UTCDateTime("2023-04-01 02:00:00")
+            #end_datetime = UTCDateTime("2023-04-01 03:00:00")
         else:
             start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
             end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
@@ -578,6 +579,6 @@ if __name__ == '__main__':
     win = xaapGUI()
     win.setWindowTitle("xaap")
     win.show()
-    win.resize(1100,700)
+    win.resize(1600,900)
 
     pg.exec()

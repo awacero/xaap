@@ -65,8 +65,12 @@ def get_triggers( xaap_config, volcan_stream ):
 
 def get_triggers_deep_learning(xaap_config, volcan_stream):
 
+
+
     model_name = xaap_config.deep_learning_model_name
     model_version = xaap_config.deep_learning_model_version
+
+    logger.info(f"Try to create model {model_name} with version:{model_version}")
 
     try:
         model = getattr(sbm,model_name).from_pretrained(model_version)
@@ -91,7 +95,8 @@ def get_triggers_deep_learning(xaap_config, volcan_stream):
 
 
 def coincidence_trigger_deep_learning(xaap_config, stream,
-                        thr_coincidence_sum, trace_ids=None,
+                        #thr_coincidence_sum, 
+                        trace_ids=None,
                         max_trigger_length=1e6, delete_long_trigger=False,
                         trigger_off_extension=0, details=False,
                         event_templates={}, similarity_threshold=0.7,
@@ -99,6 +104,8 @@ def coincidence_trigger_deep_learning(xaap_config, stream,
 
     model_name = xaap_config.deep_learning_model_name
     model_version = xaap_config.deep_learning_model_version
+    thr_coincidence_sum = xaap_config.deep_learning_coincidence_picks
+    
     # if no trace ids are specified use all traces ids found in stream
     if trace_ids is None:
         trace_ids = [tr.id for tr in stream]
@@ -151,6 +158,8 @@ def coincidence_trigger_deep_learning(xaap_config, stream,
                         logger.info(f"Model {model_name} just for detections")
                         picks = []
                         tmp_triggers = picks_detections
+            else:
+                logger.info(f"length of picks_detections was {len(picks_detections)}")
 
 
         else:

@@ -69,6 +69,7 @@ def configure_parameters_from_gui(json_xaap_config):
 
     deep_learning_model_name = json_config['children']['parameters']['children']['deep_learning_picker']['children']['model_name']['value']
     deep_learning_model_version = json_config['children']['parameters']['children']['deep_learning_picker']['children']['model_version']['value']
+    deep_learning_coincidence_picks = json_config['children']['parameters']['children']['deep_learning_picker']['children']['coincidence_picks']['value']
 
 
     output_detection_folder = json_config['children']['parameters']['children']['output_data']['children']["output_detection_folder"]['value']
@@ -107,6 +108,7 @@ def configure_parameters_from_gui(json_xaap_config):
     config.add_section("deep_learning")
     config.set("deep_learning","model_name",deep_learning_model_name)
     config.set("deep_learning","model_version",deep_learning_model_version)
+    config.set("deep_learning","coincidence_picks",f"{deep_learning_coincidence_picks}")
 
     config.add_section("output_data")
     config.set("output_data","output_detection_folder",f"{output_detection_folder}")

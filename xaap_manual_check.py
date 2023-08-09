@@ -4,7 +4,16 @@ import numpy as np
 
 import pyqtgraph as pg
 from pyqtgraph.widgets import MatplotlibWidget
-from pyqtgraph.Qt import QtGui, QtCore
+
+###from pyqtgraph.Qt import QtGui, QtCore
+
+from pyqtgraph.Qt import QtGui
+from PyQt5.QtWidgets import QWidget
+from pyqtgraph.Qt import QtCore
+from PyQt5.QtWidgets import QVBoxLayout
+from PyQt5.QtWidgets import QSplitter
+
+
 from pyqtgraph import TableWidget
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import matplotlib.pyplot as plt
@@ -15,14 +24,16 @@ from PyQt5.QtGui import QKeySequence
 
 from xaap.models import xaap_check 
 
-class xaapCheck(QtGui.QWidget):
+##class xaapCheck(QtGui.QWidget):
+class xaapCheck(QWidget):
+
 
     def __init__(self):
 
-        xaap_check.logger.info("Continuation of all this #$%&")
+        xaap_check.logger.info("Continuation of all this")
 
-        QtGui.QWidget.__init__(self)
-        
+        ##QtGui.QWidget.__init__(self)
+        QWidget.__init__(self)
         self.classifications_path = Path(xaap_check.xaap_dir,"data/"+
                                          "classifications/")
         
@@ -118,7 +129,10 @@ class xaapCheck(QtGui.QWidget):
 
         self.mw_fig = self.mw.getFigure()
         #self.mw_fig.clf()
+
         self.mw_axes = self.mw_fig.add_subplot(111)
+        """"
+        
         sampling_rate = self.trigger_stream[0].stats.sampling_rate
         #print("Sampling rate:", sampling_rate)
         
@@ -127,6 +141,30 @@ class xaapCheck(QtGui.QWidget):
         self.trigger_stream.spectrogram(wlen=2*sampling_rate,\
                                         per_lap=0.95,dbscale=True,\
                                         log=False,axes=self.mw_axes,cmap=plt.cm.jet)
+        
+        """
+        sampling_rate = self.trigger_stream[0].stats.sampling_rate
+        num_samples = len(self.trigger_stream[0].data)
+        data_duration = len(self.trigger_stream[0].data) / sampling_rate
+
+
+        # Calculate window length as 1% of data duration, in seconds
+        wlen = data_duration * 0.01
+
+        # If window length is less than 1, set it to 1 (minimum)
+        wlen = max(wlen, 1)
+
+        # Calculate nfft as the next power of 2 greater than or equal to window length * sampling rate
+        nfft = 2**np.ceil(np.log2(wlen * sampling_rate))
+
+
+        self.trigger_stream.spectrogram(wlen=wlen, per_lap=0.95, dbscale=True,
+                                        log=False, axes=self.mw_axes, cmap=plt.cm.jet)
+
+        
+        
+        
+        
         self.mw.draw()
 
         self.paded_plot.clearPlots()
@@ -143,7 +181,9 @@ class xaapCheck(QtGui.QWidget):
 
     def setupGUI(self):
 
-        self.layout = QtGui.QVBoxLayout()
+        ##self.layout = QtGui.QVBoxLayout()
+        
+        self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0,0,0,0)
         self.setLayout(self.layout)
 
@@ -190,13 +230,13 @@ class xaapCheck(QtGui.QWidget):
         view_box_i3.setMouseMode(pg.ViewBox.RectMode)
 
         '''horizontal splitter sides widgets horizontally'''
-        self.splitter_horizontal = QtGui.QSplitter()
+        self.splitter_horizontal = QSplitter()
         self.splitter_horizontal.setOrientation(QtCore.Qt.Orientation.Horizontal)
         '''vertical splitter stacks widgets vertically'''
-        self.splitter_vertical = QtGui.QSplitter()
+        self.splitter_vertical = QSplitter()
         self.splitter_vertical.setOrientation(QtCore.Qt.Orientation.Vertical)
         
-        self.splitter_vertical_side = QtGui.QSplitter()
+        self.splitter_vertical_side = QSplitter()
         self.splitter_vertical_side.setOrientation(QtCore.Qt.Orientation.Vertical)
 
         self.splitter_vertical.addWidget(self.main_layout)
