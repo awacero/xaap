@@ -118,3 +118,56 @@ def configure_parameters_from_gui(json_xaap_config):
     xaap_configuration = xaapConfig(config)
 
     return xaap_configuration
+
+
+
+
+def configure_parameters_from_config(json_xaap_config):
+    
+    logger.info("start configuration of xaap")       
+
+
+
+    config = configparser.ConfigParser()
+    '''
+    config.add_section("mseed")
+    config.set("mseed","client_id",mseed_client_id)
+    config.set("mseed","server_config_file",f"{mseed_server_config_file}")
+
+    config.add_section("volcan_configuration") 
+    config.set("volcan_configuration","volcanoes_config_file",f"{volcan_volcanoes_configuration_file}")
+    config.set("volcan_configuration","stations_config_file",f"{volcan_station_file}")
+    config.set("volcan_configuration","volcan_name",volcan_volcan_name)
+
+    
+    config.add_section("dates")
+    config.set("dates","start",datetime_start)
+    config.set("dates","end",datetime_end)
+
+
+    config.add_section("filter")
+    config.set("filter","freq_a",f"{filter_freq_a}")
+    config.set("filter","freq_b",f"{filter_freq_b}")
+    config.set("filter","type",filter_type)
+
+    config.add_section("sta_lta")
+    config.set("sta_lta","sta",f"{sta}")
+    config.set("sta_lta","lta",f"{lta}")
+    config.set("sta_lta","trigon",f"{trigon}")
+    config.set("sta_lta","trigoff",f"{trigoff}")
+    config.set("sta_lta","coincidence",f"{coincidence}")
+    config.set("sta_lta","endtime_buffer",f"{endtime_buffer}")
+
+    config.add_section("deep_learning")
+    config.set("deep_learning","model_name",deep_learning_model_name)
+    config.set("deep_learning","model_version",deep_learning_model_version)
+    config.set("deep_learning","coincidence_picks",f"{deep_learning_coincidence_picks}")
+
+    config.add_section("output_data")
+    config.set("output_data","output_detection_folder",f"{output_detection_folder}")
+    config.set("output_data","output_classification_folder",f"{output_classification_folder}")
+    '''
+
+    xaap_configuration = xaapConfig(config)
+
+    return xaap_configuration

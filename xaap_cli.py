@@ -25,9 +25,6 @@ from sklearn.ensemble import RandomForestClassifier
 
 import logging, logging.config
         
-# Librerias para CLI implementation
-from models.xaap_filter import XaapFilter
-from models.xaap_sta_lta import StaLta
 
 log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config/logging.ini')
 logging.config.fileConfig(log_file_path)
@@ -35,6 +32,12 @@ xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
 logger = logging.getLogger('stdout')
 logger.setLevel(logging.INFO)
+
+
+
+from xaap.configuration.xaap_configuration import (
+    configure_logging, configure_parameters_from_config)
+
 
 
 def main():
@@ -59,6 +62,7 @@ def main():
             logger.error("Error getting parameters: %s" %str(e))
             raise Exception("Error getting parameters: %s" %str(e))
 
+        '''
         """Create filter list"""
         try:
             filter_dict = gmutils.read_config_file(filter_file)
@@ -68,35 +72,22 @@ def main():
         except Exception as e:
             logger.error("Failed to read filters file %s" %str(e))
             raise Exception("Failed to read filters file %s" %str(e))
-
+        '''
 
     if is_error:
         print(f'Usage: python {sys.argv[0]} CONFIGURATION_FILE.txt ')  
 
 
 
-def create_filter_list(filters_dict):
-        """Create a rsam_filter object from a json file"""
-        
-        filter_list=[]
-        for filter_key,filter in filters_dict.items():       
-            xaap_filter = XaapFilter(**filter)
-            filter_list.append(xaap_filter)
-            
-        print(filter_list)
-        return filter_list
 
-def create_trigger_list(trigger_dict):
-    """"""
 
-    trigger_list = []
-    for trigger_key,trigger in trigger_dict.items():
-        xaap_trigger = StaLta(**trigger)
-        trigger_list.append(xaap_trigger)
-    
-    print(trigger_list)
-    return trigger_list
+
+
+
+
 
 
 if __name__ == '__main__':
+    logger = configure_logging()
+    logger.info("Logging configurated")
     main()

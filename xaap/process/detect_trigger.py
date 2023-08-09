@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def get_triggers( xaap_config, volcan_stream ):
 
     """
-    Detects triggers in a seismic data stream using the Short Time Average to Long Time Average (STA/LTA) trigger algorithm.
+    Detects triggers in a seismic data stream using the Short Time Average to Long Time Average (STA/LTA) trigger algorithm applying Coincidence trigger algorithm
 
     Parameters:
         xaap_config (object): An object containing the configuration settings for the XAAP system, including the parameters for the STA/LTA trigger algorithm.
@@ -65,7 +65,25 @@ def get_triggers( xaap_config, volcan_stream ):
 
 def get_triggers_deep_learning(xaap_config, volcan_stream):
 
+    """
+    Retrieves seismic triggers using a specified deep learning model from SeisBench.
+    
+    This function attempts to load a deep learning model based on the provided configuration 
+    and then uses this model to annotate and classify the given seismic stream. 
+    If successful, it returns the picks and detections; otherwise, it logs the error and returns an empty list.
 
+    Parameters:
+    - xaap_config (object): Configuration object containing attributes for the deep learning model's name and version.
+        - xaap_config.deep_learning_model_name (str): Name of the deep learning model to be used.
+        - xaap_config.deep_learning_model_version (str): Version of the deep learning model to be used.
+    - volcan_stream (object): Seismic stream data to be processed.
+
+    Returns:
+    - list: List of picks and detections if successful, otherwise an empty list.
+
+    Raises:
+    - Exception: If there's an error while creating or using the deep learning model.
+    """
 
     model_name = xaap_config.deep_learning_model_name
     model_version = xaap_config.deep_learning_model_version
@@ -74,24 +92,27 @@ def get_triggers_deep_learning(xaap_config, volcan_stream):
 
     try:
         model = getattr(sbm,model_name).from_pretrained(model_version)
-        
-
     except Exception as e:
         logger.error(f"Error while creating deep learning model from seisbench: {model_name} and {model_version}: {e}")
         return []
 
     try:
+        '''
         annotations = model.annotate(volcan_stream)
         if len(annotations)!=0:
-
             picks_detections = model.classify(volcan_stream)
-            
             return picks_detections
+        '''
+        classify_results = model.classify(volcan_stream)
+        if len(classify_results) !=0:
+            return classify_results
+        else:
+            return []
 
 
     except Exception as e:
         logger.error(f"Error using deep learning model from seisbench: {model_name} and {model_version}. Error: {e}")
-
+        return[]
 
 
 def coincidence_trigger_deep_learning(xaap_config, stream,
