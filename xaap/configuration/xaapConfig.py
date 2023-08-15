@@ -57,5 +57,8 @@ class xaapConfig():
         self.output_detection_folder = xaap_parameter["output_data"]["output_detection_folder"]
         self.output_classification_folder = xaap_parameter["output_data"]["output_classification_folder"]
 
+        self.xaap_folder_config = xaap_parameter["xaap_directories"]["configuration_folder"]
+        self.xaap_folder_data = xaap_parameter["xaap_directories"]["data_folder"]
+
 
         logger.info("xaapConfig object created")

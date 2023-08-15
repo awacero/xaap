@@ -187,6 +187,7 @@ class xaapGUI(QWidget):
         ###self.picks, self.detections = detect_trigger.get_triggers_deep_learning(self.xaap_config,self.volcan_stream)
 
         ####picks,detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
+        ##EXISTEN MAS PARAMETROS PARA COINCIDENCE TRIGGER DL PERO SE USAN LOS VALORES POR DEFECTO.  
         picks,detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream)
 
         if len(picks) >0:
@@ -292,8 +293,8 @@ class xaapGUI(QWidget):
         # Set the start and end datetime parameters for testing or based on the current time
         TEST_DATE = True
         if TEST_DATE:
-            start_datetime = UTCDateTime("2019-01-01 18:00:00")
-            end_datetime = UTCDateTime("2019-01-01  19:00:00")
+            start_datetime = UTCDateTime("2023-03-12 00:00:00")
+            end_datetime = UTCDateTime("2023-03-12  01:00:00")
             #start_datetime = UTCDateTime("2023-04-01 02:00:00")
             #end_datetime = UTCDateTime("2023-04-01 03:00:00")
         else:

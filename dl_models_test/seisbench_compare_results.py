@@ -1,22 +1,33 @@
 import pandas as pd
 
-human_detections_file = "./data/sipass/cotopaxi_test.csv"
-model_detections_file = "./data/detections/_cotopaxi_EQTransformer_scedc_20230808165426.csv_detection.csv"
-#model_detections_file = "data/detections/_cotopaxi_EQTransformer_original_20230808164858.csv"
+human_detections_file = "./data/sipass/cotopaxi.sipass.2023.03.12.csv"
+#human_detections_file = "./data/sipass/cotopaxi_2023.04.02.csv"
+model_detections_file = "./data/detections//picks_coincidence_xaap_PhaseNet_original_2023.08.14.23.41.08.csv"
+#model_detections_file = "data/detections/picks_coincidence_xaap_EQTransformer_original_2023.08.14.23.19.27.csv"
 
-model_columns_head = ["start_time", "endtime", "peaktime","peak_value","phase","station","coda","auxiliar"]
-TOLERANCE = 2
+#model_columns_head = ["start_time", "endtime", "peaktime","peak_value","phase","station","coda","auxiliar"]
+
+#model_columns_head = ['','time','stations','trace_ids','coincidence_sum','similarity','duration']
+
+TOLERANCE = 10
 
 # Cargar los archivos CSV
 df_human = pd.read_csv(human_detections_file,delimiter=",")
-df_model = pd.read_csv(model_detections_file,sep=",",names=model_columns_head,header=None)
-TIEMPO_COMPARACION = 'start_time'
+#df_model = pd.read_csv(model_detections_file,sep=",",names=model_columns_head,header=None)
+df_model = pd.read_csv(model_detections_file,sep=",")
+
+TIEMPO_COMPARACION = 'time'
 
 
 print(df_model.head())
+print("###")
+print(df_human.head())
 # Asegurarse de que las columnas de tiempo estén en formato datetime
-df_human['tiempo'] = pd.to_datetime(df_human['FechaHora']).dt.tz_localize(None)
-df_model['tiempo'] = pd.to_datetime(df_model[TIEMPO_COMPARACION]).dt.tz_localize(None)
+df_human['tiempo_local'] = pd.to_datetime(df_human['FechaHora']).dt.tz_localize('America/Guayaquil')
+df_human['tiempo'] = pd.to_datetime(df_human['tiempo_local'].dt.tz_convert('UTC'))
+
+
+df_model['tiempo'] = pd.to_datetime(df_model[TIEMPO_COMPARACION])
 
 # Definir la ventana de tolerancia (por ejemplo, 10 segundos)
 tolerancia = pd.Timedelta(seconds=TOLERANCE)

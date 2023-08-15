@@ -114,23 +114,39 @@ class xaapCheck(QWidget):
         #########################
 
         self.trigger_plot.clearPlots()
-        self.plot_b.clearPlots()
-        self.plot_b.showGrid(x=True, y=True)
+        self.plot_frequency_spectrum.clearPlots()
+
+        
+        
         self.trigger_plot.showGrid(x=True, y=True)
         self.trigger_plot.plot([float(self.trigger_times[max_loc])],\
             [max_trigger], symbol = '+')
         self.trigger_plot.plot([float(self.trigger_times[min_loc])],\
             [min_trigger], symbol = '+')
-        self.trigger_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='g')
-        self.plot_b_spectro = self.plot_b.plot(self.trigger_times,\
-                                               self.trigger_stream[0].data, pen='r')
-        self.plot_b_spectro.setFftMode(True)
+        '''DETREND'''
+        self.trigger_stream_procesed = self.trigger_stream.copy()
+        self.trigger_stream_procesed[0].detrend("demean")
+        self.trigger_stream_procesed[0].filter("highpass",freq=2)
+
+        self.trigger_plot.plot(self.trigger_times,self.trigger_stream_procesed[0].data,pen='g')
+
+
+        self.plot_frequency_spectrum.showGrid(x=True, y=True)
+
+        self.plot_frequency_spectrum_spectro = self.plot_frequency_spectrum.plot(self.trigger_times,\
+                                               self.trigger_stream[0].data, pen='blue')
+        self.plot_frequency_spectrum_spectro.setFftMode(True)
+
+
         self.paded_plot.plot(self.trigger_times,self.trigger_stream[0].data,pen='r')
 
         self.mw_fig = self.mw.getFigure()
-        #self.mw_fig.clf()
+        self.mw_fig.clf()
 
         self.mw_axes = self.mw_fig.add_subplot(111)
+
+
+
         """"
         
         sampling_rate = self.trigger_stream[0].stats.sampling_rate
@@ -176,7 +192,7 @@ class xaapCheck(QWidget):
     def clearAllPlots(self):
         self.paded_plot.clearPlots()
         self.trigger_plot.clearPlots()
-        self.plot_b.clearPlots()
+        self.plot_frequency_spectrum.clearPlots()
 
 
     def setupGUI(self):
@@ -201,6 +217,8 @@ class xaapCheck(QWidget):
         self.quitSc = QShortcut(QKeySequence('Ctrl+C'), self)
         self.quitSc.activated.connect(self.clearAllPlots)
 
+
+        ###AGREGAR TODAS LAS PARTES AQUI"
         self.table_widget = TableWidget(editable=True)
 
         # Uncomment next line if want to fill all space of the table widget
@@ -221,9 +239,9 @@ class xaapCheck(QWidget):
         view_box_i.setMouseMode(pg.ViewBox.RectMode)
 
         self.mw = MatplotlibWidget.MatplotlibWidget()
-        self.plot_b = self.side_layout.addPlot(row=1,col=0)
+        self.plot_frequency_spectrum = self.side_layout.addPlot(row=1,col=0)
         #self.plot_c = self.side_layout.addPlot(row=2,col=0)
-        view_box_i2 = self.plot_b.getViewBox()
+        view_box_i2 = self.plot_frequency_spectrum.getViewBox()
         view_box_i2.setMouseMode(pg.ViewBox.RectMode)
 
         view_box_i3 = self.paded_plot.getViewBox()
