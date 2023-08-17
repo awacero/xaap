@@ -1,8 +1,9 @@
 import pandas as pd
 
-human_detections_file = "./data/sipass/cotopaxi.sipass.2023.03.12.csv"
+#human_detections_file = "./data/sipass/cotopaxi.sipass.2023.03.12.csv"
+human_detections_file = "./data/sipass/ccn.sipass.2023.08.06.csv"
 #human_detections_file = "./data/sipass/cotopaxi_2023.04.02.csv"
-model_detections_file = "./data/detections//picks_coincidence_xaap_PhaseNet_original_2023.08.14.23.41.08.csv"
+model_detections_file = "./data/detections//picks_coincidence_xaap_EQTransformer_original_2023.08.16.23.16.16.csv"
 #model_detections_file = "data/detections/picks_coincidence_xaap_EQTransformer_original_2023.08.14.23.19.27.csv"
 
 #model_columns_head = ["start_time", "endtime", "peaktime","peak_value","phase","station","coda","auxiliar"]
@@ -20,12 +21,13 @@ TIEMPO_COMPARACION = 'time'
 
 
 print(df_model.head())
-print("###")
-print(df_human.head())
+
 # Asegurarse de que las columnas de tiempo estén en formato datetime
 df_human['tiempo_local'] = pd.to_datetime(df_human['FechaHora']).dt.tz_localize('America/Guayaquil')
 df_human['tiempo'] = pd.to_datetime(df_human['tiempo_local'].dt.tz_convert('UTC'))
 
+print("###")
+print(df_human.head())
 
 df_model['tiempo'] = pd.to_datetime(df_model[TIEMPO_COMPARACION])
 

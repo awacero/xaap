@@ -188,7 +188,7 @@ class xaapGUI(QWidget):
 
         ####picks,detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
         ##EXISTEN MAS PARAMETROS PARA COINCIDENCE TRIGGER DL PERO SE USAN LOS VALORES POR DEFECTO.  
-        picks,detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream)
+        picks,detections = detect_trigger.coincidence_pick_trigger_deep_learning(self.xaap_config,self.volcan_stream)
 
         if len(picks) >0:
             self.picks = picks
@@ -232,7 +232,39 @@ class xaapGUI(QWidget):
                         #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
                         plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
 
+
     def plot_picks(self):
+
+        for pick in self.picks:
+            print("$$$$$$$$$$")
+            print(type(pick))
+
+            print(pick)
+            pick_time = UTCDateTime(pick["time"])
+            for trace_id in pick['trace_ids']:
+                for  plot_item in self.plot_items_list:
+                    if plot_item.getAxis("left").labelText.startswith(trace_id):
+
+
+                        if pick['phase'][0] == 'P':
+                            label = pg.TextItem(text=pick['phase'][0], color='r', anchor=(0.5, 0))
+                            y_range = plot_item.viewRange()[1]
+                            label_y_pos = y_range[1] - (y_range[1] - y_range[0]) * 0.1
+                            label.setPos(pick_time.timestamp, label_y_pos)
+                            vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='cyan')
+
+                        if pick['phase'][0] == 'S':
+                            label = pg.TextItem(text=pick['phase'][0], color='r', anchor=(0.5, 0))
+                            y_range = plot_item.viewRange()[1]
+                            label_y_pos = y_range[1] - (y_range[1] - y_range[0]) * 0.1
+                            label.setPos(pick_time.timestamp, label_y_pos)
+                            vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='blue')
+
+                        plot_item.addItem(vertical_line)
+                        plot_item.addItem(label)
+
+
+    def plot_picks_old(self):
 
         for pick in self.picks:          
 
@@ -255,7 +287,7 @@ class xaapGUI(QWidget):
 
                         # Set the position of the label
                         label.setPos(pick_time.timestamp, label_y_pos)
-                        vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='r')
+                        vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='cyan')
 
                     elif pick.phase == 'S':
                         #plot_item.plot(pick_datetime.times(type='timestamp'),) ##AGREGAR EL PLOT DE UNA LINEA VERTICAL
@@ -266,7 +298,7 @@ class xaapGUI(QWidget):
 
                         # Set the position of the label
                         label.setPos(pick_time.timestamp, label_y_pos)
-                        vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='b')
+                        vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='blue')
 
                     plot_item.addItem(vertical_line)
                     plot_item.addItem(label)
@@ -293,8 +325,8 @@ class xaapGUI(QWidget):
         # Set the start and end datetime parameters for testing or based on the current time
         TEST_DATE = True
         if TEST_DATE:
-            start_datetime = UTCDateTime("2023-03-12 00:00:00")
-            end_datetime = UTCDateTime("2023-03-12  01:00:00")
+            start_datetime = UTCDateTime("2023-08-17 13:00:00")
+            end_datetime = UTCDateTime("2023-08-17  20:00:00")
             #start_datetime = UTCDateTime("2023-04-01 02:00:00")
             #end_datetime = UTCDateTime("2023-04-01 03:00:00")
         else:

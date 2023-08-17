@@ -390,7 +390,6 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
                     
                     if isinstance(classify_results[0],sb_detection):
                         logger.info(f"Model {model_name} just for detections")
-                        ###picks = []
                         tmp_triggers = classify_results
             else:
                 logger.info(f"Not expected length of classify_results,it was {len(classify_results)}")
@@ -420,32 +419,40 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
             triggers.append((on.timestamp,off.timestamp,tr.id,cft_peak,cft_std))
    
 
-
+        '''Crea una copia de la lista de objetos PICK en picks_raw'''
         for pick in tmp_picks:
             
             print("#####################################")
             print(f"####{type(pick)}")
             print(f"####{pick}")
 
-            on = pick.start_time
+            #on = pick.start_time
+            if pick.peak_time is None:
+                on = pick.start_time
+            else:
+                on = pick.peak_time
+            
             off = pick.end_time
-            ###Agregar el canal en el TRACE.ID 
+             
             picks_raw.append(pick)
-            picks.append((on.timestamp,off.timestamp,tr.id))
+            """Append to a list with picks tuple from sb.picks objects
+               The channel information is recovered in this part
+            """
+            picks.append((on.timestamp,off.timestamp,tr.id,pick.phase))
 
     
-
+    """Start of coincidence pick modified from coincidence trigger"""
 
     picks.sort()
 
-    for i,(on,off,tr_id) in enumerate(picks):
+    for i,(on,off,tr_id,phase) in enumerate(picks):
         simil = None
-        picks[i] = (on, off,tr_id,simil)
+        picks[i] = (on, off,tr_id,simil,phase)
 
     coincidence_picks = []
     last_off_time = 0.0
     while picks != []:
-        on, off, tr_id, simil = picks.pop(0)
+        on, off, tr_id, simil,phase = picks.pop(0)
         sta =  tr_id.split(".")[1]
         coincidence_pick = {}
         coincidence_pick['time']=UTCDateTime(on)
@@ -453,20 +460,24 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
         coincidence_pick["trace_ids"] = [tr_id]
         coincidence_pick["coincidence_sum"] = float(trace_ids[tr_id])
         coincidence_pick["similarity"] = {}
-
+        coincidence_pick["phase"] = [phase]
         if simil is not None:
             coincidence_pick['similarity'][sta] = simil
 
-        for(tmp_on,tmp_off,tmp_tr_id,tmp_simil) in picks:
+        for(tmp_on,tmp_off,tmp_tr_id,tmp_simil,tmp_phase) in picks:
             tmp_sta = tmp_tr_id.split(".")[1]
             # skip retriggering of already present station in current
             # coincidence trigger
+            if tmp_phase != phase:
+                continue
             if tmp_tr_id in coincidence_pick['trace_ids']:
                 continue
             if tmp_on > off + trigger_off_extension:
                 break     
+
             coincidence_pick['stations'].append(tmp_sta)
             coincidence_pick['trace_ids'].append(tmp_tr_id)
+            coincidence_pick['phase'].append(tmp_phase)
             coincidence_pick['coincidence_sum'] += trace_ids[tmp_tr_id]
             off = max(off, tmp_off)
         # skip if both coincidence sum and similarity thresholds are not met
@@ -528,7 +539,7 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
             # coincidence trigger
             ###REVISAR AQUI QUE NO ESTA QUITANDO LOS CANALES 
             if tmp_tr_id in event['trace_ids']:
-                logger.info(f"trace already used {tmp_tr_id}")
+                #logger.info(f"trace already used {tmp_tr_id}")
                 continue
             # check for overlapping trigger,
             # break if there is a gap in between the two triggers
@@ -598,7 +609,7 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
         coincidence_picks_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"picks_coincidence_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
         coincidence_picks_df.to_csv(coincidence_picks_file)
 
-    return picks,coincidence_triggers
+    return coincidence_picks,coincidence_triggers
 
 
 
