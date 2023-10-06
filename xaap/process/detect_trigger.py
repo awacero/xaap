@@ -421,10 +421,12 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
 
         '''Crea una copia de la lista de objetos PICK en picks_raw'''
         for pick in tmp_picks:
-            
+
+            '''
             print("#####################################")
             print(f"####{type(pick)}")
             print(f"####{pick}")
+            '''
 
             #on = pick.start_time
             if pick.peak_time is None:
@@ -601,13 +603,21 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
         coincidence_triggers_df = pd.DataFrame(coincidence_triggers)
         coincidence_triggers_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"triggers_coincidence_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
         coincidence_triggers_df.to_csv(coincidence_triggers_file)
-
+        ###SOLO PARA CRED
+        ##coincidence_triggers_df.to_csv(xaap_config.out_temp)
+    else:
+        print("NO COINCIDENCE TRIGGERS")
 
     if len(coincidence_picks)>0:
 
         coincidence_picks_df = pd.DataFrame(coincidence_picks)
         coincidence_picks_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"picks_coincidence_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
         coincidence_picks_df.to_csv(coincidence_picks_file)
+        ###PARA TODOS EXCEPTO CRED
+        #print("$$$$$$$$$$$$$ESCRIBIR LOS PICKS COINCIDENTES")
+        #coincidence_picks_df.to_csv(xaap_config.out_temp)
+    else:
+        print("NO COINCIDENCE PICKS")
 
     return coincidence_picks,coincidence_triggers
 
@@ -627,7 +637,9 @@ def get_triggers_ml__(xaap_config, volcan_stream):
     if len(annotations)!=0:
 
         picks, detections = model.classify(volcan_stream)
+        '''
         print("Picks:")
+
         for pick in picks:
             print(type(pick))
             print(pick)
@@ -635,7 +647,7 @@ def get_triggers_ml__(xaap_config, volcan_stream):
         print("\nDetections:")    
         for detection in detections:
             print(detection)
-
+        '''
         #picks_pd = pd.DataFrame(picks,columns=["pick_waveform_id","pick_time","pick_pahse_hint"])
         picks_split = [pick.__str__().split() for pick in picks]
         picks_df = pd.DataFrame(picks_split, columns=["pick_waveform_id","pick_time","pick_phase_hint"])

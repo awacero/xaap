@@ -16,6 +16,7 @@ from obspy.signal.trigger import classic_sta_lta
 from obspy.signal.trigger import classic_sta_lta, classic_sta_lta_py, recursive_sta_lta_py, plot_trigger, trigger_onset
 from datetime import date, datetime
 
+import json, csv 
 import numpy as np
 import pandas as pd
 from aaa_features.features import FeatureVector 
@@ -23,7 +24,7 @@ from sklearn.preprocessing import StandardScaler
 import pickle 
 from sklearn.ensemble import RandomForestClassifier
 
-
+from dl_models_test import seisbench_compare_results
 
 
 '''
@@ -41,6 +42,7 @@ from xaap.configuration.xaap_configuration import (
     configure_logging, configure_parameters_from_config_file)
 from xaap.process import pre_process, request_data, detect_trigger, classify_detection
 
+LEVEL = "BAJO"
 
 
 def main():
@@ -64,6 +66,8 @@ def main():
             
             xaap_config = configure_parameters_from_config_file(file_path)
             print(xaap_config)
+            ###CONFIGURACION DE SALIDA
+            xaap_config.out_temp=f"./{xaap_config.deep_learning_model_name}.{xaap_config.deep_learning_model_version}.{LEVEL}.csv"
 
         except Exception as e:
             logger.error("Error getting parameters: %s" %str(e))
@@ -78,17 +82,26 @@ def main():
         except Exception as e:
             logger.info(f"Error in processing. Error in request data was:{e}")
 
+        ###DETECCTION STA LTA
         
+        '''
         try:
             logger.info("Continue processing. Run detection with STA/LTA")
             triggers = detect_trigger.get_triggers(xaap_config,volcan_stream)
-            for detection in triggers:
-                print(detection)
-        
+            
+            #for detection in triggers:
+            #    print(detection)
+            sta_lta_filename = "./sta_lta_ALTO.csv"
+            if len(triggers) > 0:
+                sta_lta_pd = pd.DataFrame(triggers)
+
+                sta_lta_pd.to_csv(sta_lta_filename,index=False)
+
+
         except Exception as e:
             logger.info(f"Error in processing. Error in detection was:{e}")
-
-
+        '''
+        
 
 
 
@@ -114,8 +127,24 @@ def main():
         except Exception as e:
             logger.info(f"Error in classify triggers: {e}")
 
+        '''
+        try:
+            logger.info(f"Compare results")
+            
+            results = seisbench_compare_results.calculate_metrics(xaap_config.out_temp)
+            
+            print(xaap_config.deep_learning_model_name, xaap_config.deep_learning_model_version)
+            print(results)
 
+            results_file_name = f"./{xaap_config.deep_learning_model_name}_{xaap_config.deep_learning_model_version}.{LEVEL}.json"
 
+            with open(results_file_name,'w') as file:
+                json.dump(results,file)
+
+        except Exception as e:
+            logger.info(f"Error in classify triggers: {e}")
+
+        '''
 
     if is_error:
         print(f'Usage: python {sys.argv[0]} CONFIGURATION_FILE.txt ')  

@@ -323,14 +323,14 @@ class xaapGUI(QWidget):
         xaap_parameters.restoreState(json.loads(json_data))
  
         # Set the start and end datetime parameters for testing or based on the current time
-        TEST_DATE = True
+        TEST_DATE = False
         if TEST_DATE:
             start_datetime = UTCDateTime("2023-08-17 13:00:00")
             end_datetime = UTCDateTime("2023-08-17  20:00:00")
             #start_datetime = UTCDateTime("2023-04-01 02:00:00")
             #end_datetime = UTCDateTime("2023-04-01 03:00:00")
         else:
-            start_datetime = (UTCDateTime.now() - 3600).strftime("%Y-%m-%d %H:%M:%S")
+            start_datetime = (UTCDateTime.now() - 86400).strftime("%Y-%m-%d %H:%M:%S")
             end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
 
         # Add the start and end datetime parameters to the xaap_parameters Parameter object

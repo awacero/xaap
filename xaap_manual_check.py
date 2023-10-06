@@ -22,6 +22,8 @@ import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QHeaderView , QPushButton, QShortcut, QApplication
 from PyQt5.QtGui import QKeySequence
 
+from PyQt5.QtWidgets import QComboBox
+import csv
 from xaap.models import xaap_check 
 
 ##class xaapCheck(QtGui.QWidget):
@@ -52,9 +54,14 @@ class xaapCheck(QWidget):
         self.table_widget.verticalHeader().\
             sectionDoubleClicked.connect(self.get_plots)
         self.table_widget.verticalHeader().sectionClicked.connect(self.get_plots)
-        self.params.param('Load classifications').\
+        self.params.param('load_classifications').\
             sigActivated.connect(self.load_data_to_tbl_widget)
         
+        self.params.param('save_triggers').\
+            sigActivated.connect(self.save_table_to_csv)
+
+
+
 
     def load_data_to_tbl_widget(self):
 
@@ -64,12 +71,12 @@ class xaapCheck(QWidget):
         self.table_widget.appendData(predicted_data[['trigger_code','','',
                                      'Station','Network','Component','Fecha',
                                      'Hora','prediction','','coda','','','',
-                                     '','']].to_numpy())
+                                     '','','']].to_numpy())
         self.table_widget.setHorizontalHeaderLabels(str("Trigger code;Cod Registro;"+
                                                         "Volcan;Estación;"+
                                                         "Net;Componente;Fecha;Hora;"+
                                                         "Tipo;S-P;Coda;Amp-Cuentas;"+
-                                                        "T;f;RMS;;").split(";"))
+                                                        "T;f;RMSXXXXXX;Stream;Status;").split(";"))
         self.table_widget.setColumnWidth(0, 0) # Trigger code
         self.table_widget.setColumnWidth(1, 100) # Cod Registro
         self.table_widget.setColumnWidth(2, 70) # Volcan
@@ -86,14 +93,67 @@ class xaapCheck(QWidget):
         self.table_widget.setColumnWidth(13, 50) # f
         self.table_widget.setColumnWidth(14, 50) # RMS
         self.table_widget.setColumnWidth(15, 50) # Botón
+        self.table_widget.setColumnWidth(16, 100) # Botón
 
         # create a button column
         for index in range(self.table_widget.rowCount()):
             btn = QPushButton(self.table_widget)
-            btn.setText('Ver')
+            btn.setText('Show')
             btn.setStyleSheet("background-color: blue; color: white")
             btn.clicked.connect(self.get_plots)
             self.table_widget.setCellWidget(index, 15, btn)
+
+
+
+        for index in range(self.table_widget.rowCount()):
+            statatus_cbox = QComboBox()
+            statatus_cbox.addItems(["Exist","Not Exist"])
+            statatus_cbox.setCurrentIndex(0)
+            self.table_widget.setCellWidget(index,16,statatus_cbox)
+
+    def save_table_to_csv(self):
+
+        filename = "./temp.csv"
+        with open(filename, 'w', newline='') as csv_file:
+            writer = csv.writer(csv_file)
+            
+            # Recorrer las filas del QTableWidget
+            for row in range(self.table_widget.rowCount()):
+                row_data = []
+                # Recorrer las columnas de la fila actual
+                for column in range(self.table_widget.columnCount()):
+                    item = self.table_widget.item(row, column)
+                    temp_item = self.table_widget.cellWidget(row, column)
+                    # Si el item no es None, obtener su texto
+                    print(type(item))
+                    print(type(temp_item))
+
+                    NoneType = type(None)
+                    
+                    if item is not None and isinstance(temp_item,NoneType):
+                        
+                        row_data.append(item.text())
+                    
+
+                    elif item is not None and isinstance(temp_item,QPushButton):
+                        continue
+
+                    elif item is not None and isinstance(temp_item,QComboBox):
+                        index = temp_item.currentIndex()
+                        row_data.append(temp_item.itemText(index))                
+                    else:
+                        row_data.append('')
+                    
+
+                writer.writerow(row_data)      
+
+
+
+
+
+
+
+
 
 
     def get_plots(self):
@@ -293,8 +353,8 @@ class xaapCheck(QWidget):
                         'value':0.10,'step':0.05,'limits':[0.01,1] }
                                                             ]},
                                                           ]},
-            {'name':'Load classifications','type':'action'},
-            {'name':'Save triggers','type':'action'}
+            {'name':'load_classifications','type':'action'},
+            {'name':'save_triggers','type':'action'}
                                                                          ]
                                                                          )
         xaap_check.logger.info("End of set parameters")
