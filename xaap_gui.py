@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
 
+"""
+LAST CHANGE
+2023.10.16. 
+Add save  json and then  load it via terminal and delete old unused code 
+"""
 
-#import logging
-#import pyqtgraph.configfile
-#from PyQt5.QtWidgets import QPushButton, QMenuBar, QMenu, QAction
-
-from obspy import Stream, Trace, read
-
-import sys
-
-import os
-import pickle
-
+import sys,os
 import json
-from datetime import date, datetime
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -21,14 +16,21 @@ import pandas as pd
 import pyqtgraph as pg
 from aaa_features.features import FeatureVector
 from obspy import UTCDateTime
+
 from obspy.signal import filter
+from obspy import Stream, Trace, read
+import pickle
+from datetime import date, datetime
+from sklearn.ensemble import RandomForestClassifier
+from xaap.configuration import xaap_configuration
+from  seisbench.util.annotations import Pick as sb_pick
+from  seisbench.util.annotations import Detection as sb_detection
+from sklearn.preprocessing import StandardScaler
+from pyqtgraph.Qt import QtCore, QtGui
+
 
 
 from pyqtgraph.parametertree import Parameter, ParameterTree
-from pyqtgraph.Qt import QtCore, QtGui
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from xaap.configuration import xaap_configuration
 
 
 from PyQt5.QtWidgets import QFileDialog
@@ -42,17 +44,14 @@ from pyqtgraph import  GraphicsLayoutWidget
 from pyqtgraph.graphicsItems.DateAxisItem import DateAxisItem
 from pyqtgraph import LinearRegionItem
 
-from  seisbench.util.annotations import Pick as sb_pick
-from  seisbench.util.annotations import Detection as sb_detection
+from PyQt5.QtWidgets import QFileDialog
 
-
-from xaap.configuration.xaap_configuration import (
-    configure_logging, configure_parameters_from_gui)
+from xaap.configuration.xaap_configuration import (configure_logging, configure_parameters_from_gui)
 from xaap.process import pre_process, request_data, detect_trigger
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
-#xaap_config_dir = Path("%s/%s" %(xaap_dir,"config"))
 xaap_config_dir = Path(xaap_dir,"config")
+
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 
 
@@ -62,97 +61,109 @@ class xaapGUI(QWidget):
     A class for creating and configuring the xaap GUI.
     """
 
-    def loadPreset(self,param,preset):
-
-        if preset == '':
-            return
-        fn = os.path.join(self.parameters_dir, preset+".json")
-        state = pg.configfile.readConfigFile(fn)
-        self.loadState(state)
-
-    def save(self):
-        filename = pg.QtGui.QFileDialog.getSaveFileName(self, "Save State..", "xaap_configuracion.cfg", "Config Files (*.cfg)")
-        if isinstance(filename, tuple):
-            filename = filename[0]  # Qt4/5 API difference
-        if filename == '':
-            return
-        state = self.params.saveState()
-        pg.configfile.writeConfigFile(state, str(filename)) 
-
-
-
-    def loadState(self, state):
-        if 'Load Preset..' in state['children']:
-            del state['children']['Load Preset..']['limits']
-            del state['children']['Load Preset..']['value']
-        self.params.param('Parameters').clearChildren()
-        self.params.restoreState(state, removeChildren=False)
-
-    # Add the save_parameters, load_parameters, and toggle_parameter_tree functions
     def save_parameters(self):
-        # Your code for saving parameters
-        pass
-
-    def load_parameters(self):
-        # Your code for loading parameters
-        options = QFileDialog.Options()
-        options |= QFileDialog.ReadOnly
-        file_name, _ = QFileDialog.getOpenFileName(self, "Load Parameter Configuration", "", "JSON Files (*.json);;All Files (*)", options=options)
+        filename, _ = QFileDialog.getSaveFileName(self, "Save State..", "xaap_configuracion.json", "JSON Files (*.json)")
+        if not filename:  # Check if the Cancel button was clicked
+            return
+        if not filename.endswith('.json'):  # Ensure the file has the correct extension
+            filename += '.json'
+        state = self.params.saveState()
+       
+        if "dates" in state["children"]["parameters"]["children"] :
+            logger.info("Removed dates from parameter")
+            del state["children"]["parameters"]["children"] ["dates"]["children"] ["start"]
+            del state["children"]["parameters"]["children"] ["dates"]["children"] ["end"]
         
-        if file_name:
-            with open(file_name, 'r') as f:
-                json_data = f.read()
-            
-            loaded_parameters = json.loads(json_data)
-            self.tree.parameter.restoreState(loaded_parameters)
+        with open(filename, 'w') as f:
+            json.dump(state, f, indent=2)
 
 
 
-    def __init__(self):
+
+    def __init__(self, detect_datetime='default',xaap_gui_json='xaap_gui.json',*args):
         """
         Initializes the xaapGUI class.
         """
+        self.detect_datetime = detect_datetime
+        self.xaap_gui_json = xaap_gui_json
 
         logger.info("Start of all the process. Working directory %s" %xaap_dir)
 
         QWidget.__init__(self)
 
         self.setupGUI()       
-        #self.xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))       
         self.params = self.create_parameters()
-
-
-        """
-        self.parameters_dir = Path(xaap_dir, 'config','xaap_parameters')
-        if os.path.exists(self.parameters_dir):
-            presets = [os.path.splitext(p)[0] for p in os.listdir(self.parameters_dir)]
-            self.params.param('load_preset..').setLimits(['']+presets)
-        """
-        '''loadPreset is called with parameters: param and preset '''
-        #self.params.param('load_preset..').sigValueChanged.connect(self.loadPreset)
-        #self.params.param('save').sigActivated.connect(self.save)
-        #self.xaap_config = configure_parameters_from_gui(self.json_xaap_state)
 
         self.tree.setParameters(self.params, showTop=True)
         logger.info("Configure parameter signals")
- 
-        self.params.param("update_parameters").sigActivated.connect(lambda: self.gui_update_parameters())
 
+        """GUI buttons linked with functions"""
+
+        self.params.param("update_parameters").sigActivated.connect(lambda: self.gui_update_parameters())
         """Get the stream for the configured volcano"""        
         self.params.param("request_data").sigActivated.connect(lambda: self.gui_request_stream())
-
         """Preprocess: sort, merge and filter the stream for the configured volcano"""       
         self.params.param("pre_process").sigActivated.connect(lambda: self.gui_pre_process_stream())
-
         self.params.param('plot_stream').sigActivated.connect(self.plot_stream)
         self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
         self.p1.sigRangeChanged.connect(self.set_p2_using_p1)
-
         self.params.param('detection_sta_lta').sigActivated.connect(lambda: self.gui_detection_sta_lta( ))
         self.params.param('detection_deep_learning').sigActivated.connect(lambda: self.gui_detection_deep_learning( ))
         self.params.param('classify_triggers').sigActivated.connect(self.classify_triggers)
 
 
+    def create_parameters(self):
+        """
+        This function creates a ParameterTree object to store the configuration settings for the XAAP application. The structure
+        and default values for the parameters are read from a JSON file (xaap_gui.json). Additionally, the function sets the start
+        and end datetime parameters based on the current time or a test date.
+
+        Returns:
+        --------
+        xaap_parameters: Parameter
+            A Parameter object representing the XAAP configuration settings, including the start and end datetime parameters.
+        """
+
+        # Read the xaap_gui.json file and create a Parameter object from its contents
+        xaap_parameters = Parameter.create(name='xaap_configuration', type='group', children=[])
+        
+        with open(f'{xaap_config_dir}/{self.xaap_gui_json}', 'r') as f:
+            json_data = f.read()
+        xaap_parameters.restoreState(json.loads(json_data))
+ 
+        # Set the start and end datetime parameters for testing or based on the current time
+
+
+        if self.detect_datetime == "test":
+            start_datetime = UTCDateTime("2023-08-17 13:00:00")
+            end_datetime = UTCDateTime("2023-08-17  20:00:00")
+            #start_datetime = UTCDateTime("2023-04-01 02:00:00")
+            #end_datetime = UTCDateTime("2023-04-01 03:00:00")
+            
+        elif self.detect_datetime =="default":
+        
+            start_datetime = (UTCDateTime.now() - 3600*3).strftime("%Y-%m-%d %H:%M:%S")
+            end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
+        
+        else:
+            start_datetime = UTCDateTime("")
+
+        # Add the start and end datetime parameters to the xaap_parameters Parameter object
+        xaap_parameters.child('parameters').child('dates').addChild({'name': 'start', 'type': 'str', 'value': f"{start_datetime}"})
+        xaap_parameters.child('parameters').child('dates').addChild({'name': 'end', 'type': 'str', 'value': f"{end_datetime}"})
+
+        # Save the state of the xaap_parameters object as a JSON string
+        xaap_state = xaap_parameters.saveState()
+        self.json_xaap_state = json.dumps(xaap_state, indent=2)
+
+        return xaap_parameters
+
+
+
+
+
+
+    """FUNCTIONS LINKED TO THE GUI BUTTONS"""
     def gui_update_parameters(self):
         xaap_state = self.params.saveState()
         self.json_xaap_state = json.dumps(xaap_state, indent=2)
@@ -160,28 +171,21 @@ class xaapGUI(QWidget):
         logger.info("Call update parameters")
         self.xaap_config = configure_parameters_from_gui(self.json_xaap_state)
 
-
     def gui_request_stream(self):
         self.volcan_stream = request_data.request_stream(self.xaap_config)
         # do other processing as necessary
         print(self.volcan_stream)
 
-    def gui_pre_process_stream(self):
-        
+    def gui_pre_process_stream(self):        
         self.volcan_stream = pre_process.pre_process_stream(self.xaap_config,self.volcan_stream)
         print(self.volcan_stream)
 
-
     def gui_detection_sta_lta(self):
-
         self.triggers = detect_trigger.get_triggers(self.xaap_config,self.volcan_stream)
-
         self.plot_triggers()
 
     def gui_detection_deep_learning(self):
         ##get picks and detections 
-
-
 
         ###self.picks, self.triggers = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
         ###self.picks, self.detections = detect_trigger.get_triggers_deep_learning(self.xaap_config,self.volcan_stream)
@@ -304,44 +308,6 @@ class xaapGUI(QWidget):
                     plot_item.addItem(label)
             
 
-    def create_parameters(self):
-        """
-        This function creates a ParameterTree object to store the configuration settings for the XAAP application. The structure
-        and default values for the parameters are read from a JSON file (xaap_gui.json). Additionally, the function sets the start
-        and end datetime parameters based on the current time or a test date.
-
-        Returns:
-        --------
-        xaap_parameters: Parameter
-            A Parameter object representing the XAAP configuration settings, including the start and end datetime parameters.
-        """
-
-        # Read the xaap_gui.json file and create a Parameter object from its contents
-        xaap_parameters = Parameter.create(name='xaap_configuration', type='group', children=[])
-        with open('./config/xaap_gui.json', 'r') as f:
-            json_data = f.read()
-        xaap_parameters.restoreState(json.loads(json_data))
- 
-        # Set the start and end datetime parameters for testing or based on the current time
-        TEST_DATE = False
-        if TEST_DATE:
-            start_datetime = UTCDateTime("2023-08-17 13:00:00")
-            end_datetime = UTCDateTime("2023-08-17  20:00:00")
-            #start_datetime = UTCDateTime("2023-04-01 02:00:00")
-            #end_datetime = UTCDateTime("2023-04-01 03:00:00")
-        else:
-            start_datetime = (UTCDateTime.now() - 86400).strftime("%Y-%m-%d %H:%M:%S")
-            end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
-
-        # Add the start and end datetime parameters to the xaap_parameters Parameter object
-        xaap_parameters.child('parameters').child('dates').addChild({'name': 'start', 'type': 'str', 'value': f"{start_datetime}"})
-        xaap_parameters.child('parameters').child('dates').addChild({'name': 'end', 'type': 'str', 'value': f"{end_datetime}"})
-
-        # Save the state of the xaap_parameters object as a JSON string
-        xaap_state = xaap_parameters.saveState()
-        self.json_xaap_state = json.dumps(xaap_state, indent=2)
-
-        return xaap_parameters
 
 
     def plot_stream(self):
@@ -467,19 +433,6 @@ class xaapGUI(QWidget):
         self.layout.setContentsMargins(0,0,0,0)
         self.setLayout(self.layout)
 
-        '''
-        # Create a QWidget container for the menu bar
-        self.menu_container = QWidget()
-        self.menu_container.setFixedHeight(25)
-        self.layout.addWidget(self.menu_container)
-
-        # Create menu bar and set it as the layout for the menu container
-        self.menu_bar = QMenuBar(self.menu_container)
-        self.menu_container_layout = QtGui.QVBoxLayout(self.menu_container)
-        self.menu_container_layout.setContentsMargins(0, 0, 0, 0)
-        self.menu_container_layout.addWidget(self.menu_bar)
-
-        '''
 
         # Create a QWidget container for the menu bar
         self.menu_container = QWidget()
@@ -497,49 +450,19 @@ class xaapGUI(QWidget):
         # Create menu items and actions
         self.menu = QMenu("Menu")
         self.save_action = QAction("Save Parameter Configuration", self)
-        self.load_action = QAction("Load Parameter Configuration", self)
         self.toggle_action = QAction("Hide/Show Parameter Tree", self)
 
         # Connect actions to functions
         self.save_action.triggered.connect(self.save_parameters)
-        self.load_action.triggered.connect(self.load_parameters)
         self.toggle_action.triggered.connect(self.toggle_parameter_tree)
 
         # Add actions to the menu
         self.menu.addAction(self.save_action)
-        self.menu.addAction(self.load_action)
         self.menu.addAction(self.toggle_action)
 
         # Add menu to the menu bar
         self.menu_bar.addMenu(self.menu)
 
-
-
-        '''
-        self.splitter = QtGui.QSplitter()
-        self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
-        self.layout.addWidget(self.splitter)
-
-        self.tree = ParameterTree(showHeader=False)
-        self.splitter.addWidget(self.tree)
-
-        self.splitter2 = QtGui.QSplitter()
-        self.splitter2.setOrientation(QtCore.Qt.Orientation.Vertical)
-        self.splitter.addWidget(self.splitter2)
-
-        self.plot_window = pg.GraphicsLayoutWidget()
-        self.plot_window.setWindowTitle("XAAP")
-        self.splitter2.addWidget(self.plot_window)
-
-        self.datetime_axis_1 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom', utcOffset=5)
-        self.datetime_axis_2 = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom', utcOffset=5)
-
-        self.p1 = self.plot_window.addPlot(row=1, col=0, axisItems={'bottom': self.datetime_axis_1})
-        self.p2 = self.plot_window.addPlot(row=2, col=0, axisItems={'bottom': self.datetime_axis_2})
-
-        self.window_region = pg.LinearRegionItem()
-        self.p2.addItem(self.window_region, ignoreBounds=True)
-        '''
         self.splitter = QSplitter()
         self.splitter.setOrientation(Qt.Orientation.Horizontal)
         self.layout.addWidget(self.splitter)
@@ -575,7 +498,6 @@ class xaapGUI(QWidget):
             self.tree.show()
 
 
-
     def set_p1_using_p2(self):
         
         minX,maxX = self.window_region.getRegion()
@@ -599,7 +521,16 @@ if __name__ == '__main__':
     print("call logging configuration")
     logger = configure_logging()
     logger.info("Logging configurated")
+    '''Call the program with arguments or use default values'''
+    parser = argparse.ArgumentParser(description='XAAP_GUI Configuration')
+    parser.add_argument('--detect_datetime', type=str, default="default" ,help='datetime to detect ')
+    parser.add_argument('--xaap_gui_json', type=str, default="xaap_gui.json", help='JSON config file for XAAP_GUI')
 
+    args = parser.parse_args()
+
+    # Ahora args.time y args.config contienen los valores proporcionados por el usuario
+    logger.info(f'detect_datetime {args.detect_datetime}')
+    logger.info(f'xaap_gui_json: {args.xaap_gui_json}')
 
 
     app = pg.mkQApp()
@@ -607,9 +538,9 @@ if __name__ == '__main__':
     QWidget {font-size: 15px}
     QMenu {font-size: 10px}
     QMenu QWidget {font-size: 10px}
-""")
+                        """)
 
-    win = xaapGUI()
+    win = xaapGUI(detect_datetime=args.detect_datetime, xaap_gui_json=args.xaap_gui_json )
     win.setWindowTitle("xaap")
     win.show()
     win.resize(1600,900)
