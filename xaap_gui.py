@@ -146,7 +146,8 @@ class xaapGUI(QWidget):
             end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
         
         else:
-            start_datetime = UTCDateTime("")
+            start_datetime = UTCDateTime(self.detect_datetime)
+            end_datetime = start_datetime + 86400
 
         # Add the start and end datetime parameters to the xaap_parameters Parameter object
         xaap_parameters.child('parameters').child('dates').addChild({'name': 'start', 'type': 'str', 'value': f"{start_datetime}"})
@@ -527,6 +528,8 @@ if __name__ == '__main__':
     parser.add_argument('--xaap_gui_json', type=str, default="xaap_gui.json", help='JSON config file for XAAP_GUI')
 
     args = parser.parse_args()
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
 
     # Ahora args.time y args.config contienen los valores proporcionados por el usuario
     logger.info(f'detect_datetime {args.detect_datetime}')
