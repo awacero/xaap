@@ -103,3 +103,10 @@ cd xaap
 python dl_models_test/seisbench_models_test.py config/dl_models_test_config/profile_dl_models_test_chiles.txt 1 10
 ```
 
+## Run XAAP GUI
+```
+$ conda activate igxaap
+$ python xaap_gui.py --xaap_gui_json xaap_tungurahua.json --detect_datetime 2006-08-16
+
+```
+
