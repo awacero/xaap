@@ -111,3 +111,12 @@ cd xaap
 python xaap_cli.py config/xaap_cli_config.cfg
 
 ```
+=======
+## Run XAAP GUI
+```
+$ conda activate igxaap
+$ python xaap_gui.py --xaap_gui_json xaap_tungurahua.json --detect_datetime 2006-08-16
+
+```
+
+
