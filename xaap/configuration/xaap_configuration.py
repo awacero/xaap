@@ -128,7 +128,7 @@ def configure_parameters_from_gui(json_xaap_config):
 
 def configure_parameters_from_config_file(config_file):
     
-    logger.info("start configuration of xaap from config file")       
+    logger.info("start configuration of xaap from config text file")       
     
     config = configparser.ConfigParser()
     config.read(config_file)   

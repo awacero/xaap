@@ -103,3 +103,11 @@ cd xaap
 python dl_models_test/seisbench_models_test.py config/dl_models_test_config/profile_dl_models_test_chiles.txt 1 10
 ```
 
+## Run as CLI
+
+```
+conda activate xaap
+cd xaap 
+python xaap_cli.py config/xaap_cli_config.cfg
+
+```

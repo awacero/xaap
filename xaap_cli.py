@@ -24,7 +24,17 @@ from sklearn.preprocessing import StandardScaler
 import pickle 
 from sklearn.ensemble import RandomForestClassifier
 
-from dl_models_test import seisbench_compare_results
+
+
+import sys
+
+#from dl_models_test import seisbench_compare_results
+
+
+##TODO
+#LIMPIA Y ORDENA EL CODIGO
+# QUE UNA FUNCION SOLO HAGA UNA COSA
+## es necesario USAR un metodo que permita recuperar el canal. 
 
 
 '''
@@ -40,9 +50,9 @@ logger.setLevel(logging.INFO)
 
 from xaap.configuration.xaap_configuration import (
     configure_logging, configure_parameters_from_config_file)
-from xaap.process import pre_process, request_data, detect_trigger, classify_detection
+from xaap.process import pre_process, request_data, detect_trigger, classify_detection, detect_picks
 
-LEVEL = "BAJO"
+
 
 
 def main():
@@ -67,7 +77,7 @@ def main():
             xaap_config = configure_parameters_from_config_file(file_path)
             print(xaap_config)
             ###CONFIGURACION DE SALIDA
-            xaap_config.out_temp=f"./{xaap_config.deep_learning_model_name}.{xaap_config.deep_learning_model_version}.{LEVEL}.csv"
+            xaap_config.out_temp=f"./{xaap_config.deep_learning_model_name}.{xaap_config.deep_learning_model_version}.csv"
 
         except Exception as e:
             logger.error("Error getting parameters: %s" %str(e))
@@ -106,7 +116,20 @@ def main():
 
 
         try:
-            picks,detections = detect_trigger.coincidence_pick_trigger_deep_learning(xaap_config,volcan_stream)
+            ##picks,detections = detect_trigger.coincidence_pick_trigger_deep_learning(xaap_config,volcan_stream)
+
+            """PROGRAMA DE FORMA SIMPLE, """
+
+            picks =  detect_picks.get_picks_deep_learning(xaap_config,volcan_stream)
+            print("Print results of get_picks_deep_learning()")
+            for p in picks[0]:
+                print(p)
+                
+            for p in picks[1]:
+                print(p)
+                
+
+            sys.exit(0)
 
             if len(picks) >0:
                 picks = picks
@@ -147,7 +170,8 @@ def main():
         '''
 
     if is_error:
-        print(f'Usage: python {sys.argv[0]} CONFIGURATION_FILE.txt ')  
+
+        print(f'ERROR: Usage: python {sys.argv[0]} CONFIGURATION_FILE.txt ')  
 
 
 

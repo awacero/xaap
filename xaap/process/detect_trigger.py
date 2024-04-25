@@ -88,7 +88,7 @@ def get_triggers_deep_learning(xaap_config, volcan_stream):
     model_name = xaap_config.deep_learning_model_name
     model_version = xaap_config.deep_learning_model_version
 
-    logger.info(f"Try to create model {model_name} with version:{model_version}")
+    logger.info(f"Try to create model {model_name} with version:{model_version} for {volcan_stream}")
 
     try:
         model = getattr(sbm,model_name).from_pretrained(model_version)
@@ -113,6 +113,10 @@ def get_triggers_deep_learning(xaap_config, volcan_stream):
     except Exception as e:
         logger.error(f"Error using deep learning model from seisbench: {model_name} and {model_version}. Error: {e}")
         return[]
+
+
+
+
 
 
 def coincidence_trigger_deep_learning(xaap_config, stream,
@@ -158,6 +162,7 @@ def coincidence_trigger_deep_learning(xaap_config, stream,
         #picks,tmp_triggers = get_triggers_deep_learning(xaap_config,Stream(tr))
 
         classify_results = get_triggers_deep_learning(xaap_config,Stream(tr))
+
 
 
         if classify_results is not None:
@@ -338,6 +343,7 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
     picks =[]
     triggers_raw = []
     picks_raw = []
+    picks_raw_channel = []
     tmp_triggers = []
     tmp_picks = []
     # prepare kwargs for trigger_onset
@@ -364,6 +370,7 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
         #picks,tmp_triggers = get_triggers_deep_learning(xaap_config,Stream(tr))
 
         classify_results = get_triggers_deep_learning(xaap_config,Stream(tr))
+
 
 
         if classify_results is not None:
@@ -441,6 +448,17 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
                The channel information is recovered in this part
             """
             picks.append((on.timestamp,off.timestamp,tr.id,pick.phase))
+
+            ##The following line stores the raw picks with channel information 
+            ##picks_raw_channel.append((on.timestamp,off.timestamp,tr.id,pick.phase))
+            picks_raw_channel.append({
+                "trace_id": tr.id,  # Asumiendo que tr.id contiene algo similar a 'EC.BBIL.'
+                "start_time": on.timestamp,  # Formato '2012-08-16T06:26:53.700000Z'
+                "end_time": off.timestamp,  # Formato '2012-08-16T06:26:54.110000Z'
+                "peak_time": pick.peak_time,  # Necesitarás ajustar esto según cómo obtienes el peak_time
+                "peak_value": pick.peak_value,  # Ajustar según cómo obtienes el peak_value
+                "phase": pick.phase  # Asumiendo que pick.phase contiene el valor 'P'
+            })
 
     
     """Start of coincidence pick modified from coincidence trigger"""
@@ -585,13 +603,22 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
 
 
 
+    if len(picks_raw_channel) > 0:
 
-    if len(picks_raw) > 0:
+        print("####")
+        print(picks_raw_channel)
 
         logger.info(f"Model {model_name} store picks and detections" )
-        picks_df = pd.DataFrame(vars(p) for p in picks_raw)
+        temp_df = pd.DataFrame(picks_raw_channel)
+        picks_df =temp_df.sort_values(by=["peak_time",],ascending=True)
         detected_picks_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"picks_raw_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
-        picks_df.to_csv(detected_picks_file)           
+        picks_df.to_csv(detected_picks_file)        
+
+
+        ###LLAMAR UNA FUNCION PARA ESCRIBIR ESTOS PICKS EN FORMATO XML 
+
+
+
 
     if len(triggers_raw) > 0:
         triggers_df = pd.DataFrame(vars(d) for d in triggers_raw)
@@ -609,6 +636,7 @@ def coincidence_pick_trigger_deep_learning(xaap_config, stream,
         print("NO COINCIDENCE TRIGGERS")
 
     if len(coincidence_picks)>0:
+        print(f"COINCIDENCE PICKS: {len(coincidence_picks)}")
 
         coincidence_picks_df = pd.DataFrame(coincidence_picks)
         coincidence_picks_file = Path(xaap_config.output_detection_folder) / UTCDateTime.now().strftime(f"picks_coincidence_xaap_{model_name}_{model_version}_%Y.%m.%d.%H.%M.%S.csv")
