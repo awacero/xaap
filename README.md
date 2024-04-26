@@ -12,7 +12,7 @@ conda config --add channels conda-forge
 conda create --name igxaap python=3.10 
 ```
 
-## Install the requirements libraries 
+## Install the requirements libraries on a GPU PC
 
 ``` bash
 conda activate igxaap  
@@ -22,6 +22,18 @@ pip install scikit-learn
 ##Install scikit-learn using pip or LD_PRELOAD generates an error ###
 pip install aaa_features get_mseed_data 
 ```
+
+## Install the requirements libraries only for CPU(NO GPU)
+
+``` bash
+conda activate igxaap
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip install seisbench 
+conda install pyqtgraph pyqt chardet
+pip install scikit-learn 
+pip install aaa_features get_mseed_data 
+```
+
 
 ## Clone XAAP code
 ```
