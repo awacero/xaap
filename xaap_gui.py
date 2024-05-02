@@ -213,6 +213,14 @@ class xaapGUI(QWidget):
             for station_stream in self.volcan_stream:
                 
                 detections.extend(process_deep_learning.get_detections(self.xaap_config,Stream(station_stream),deep_learning_model))
+            
+            if len(detections) > 0:
+                
+                logger.info(f"$$$$ End of  DL detection was: Individual detections {len(detections)}")
+                for individual_detection in detections:
+                    print(individual_detection)
+                
+
 
         except Exception as e:
             logger.info(f"Error in processing. Error in detection  DL was:{e}")
@@ -225,11 +233,9 @@ class xaapGUI(QWidget):
                 self.triggers = coincidence_detections
                 self.plot_triggers()
                 logger.info(f"Coincidence triggers found: {len(self.triggers)}")
-                '''
-                logger.info(f"@@@@@@@@@@@@FIN DE COINCIDENCE PICKS WAS:")
-                for c_p in coincidence_detections:
-                    print(c_p)
-                '''
+                for coincidence_detection in coincidence_detections:
+                    print(coincidence_detection)
+
             except Exception as e:
                 print(f"Error in coincidence detection was: {e}")
 

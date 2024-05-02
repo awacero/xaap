@@ -422,7 +422,7 @@
                 "GPD",
                 "PhaseNet"
               ],
-              "value":"PhaseNet"
+              "value":"EQTransformer"
             },
 
             "model_version":{
@@ -437,6 +437,7 @@
                 "instance",
                 "iquique",
                 "lendb",
+                "mlaapde",
                 "neic",
                 "obs",
                 "scedc",
@@ -445,7 +446,11 @@
               ],
               "limits":[
                 "stead",
-                "original"
+                "original",
+                "geofon",
+                "lendb",
+                "instance",
+                "phasenet_cotopaxi_stead"
                 ],
               "value":"stead"
             },
