@@ -47,7 +47,10 @@ from pyqtgraph import LinearRegionItem
 from PyQt5.QtWidgets import QFileDialog
 
 from xaap.configuration.xaap_configuration import (configure_logging, configure_parameters_from_gui)
-from xaap.process import pre_process, request_data, detect_trigger
+from xaap.process import pre_process, request_data, detect_trigger, process_deep_learning
+
+
+
 
 xaap_dir = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])))
 xaap_config_dir = Path(xaap_dir,"config")
@@ -187,7 +190,52 @@ class xaapGUI(QWidget):
         self.triggers = detect_trigger.get_triggers(self.xaap_config,self.volcan_stream)
         self.plot_triggers()
 
+
+
     def gui_detection_deep_learning(self):
+
+        """
+        Try to process each stream individually with the DL model
+        Process a single stream to recover the channel
+        The function should return a detection window with a P/S phase if available. 
+        """
+        try:
+            logger.info("Try to create DL model")
+            deep_learning_model = process_deep_learning.create_model(self.xaap_config)
+            logger.info(f"SB model: {deep_learning_model.name} created")
+        except Exception as e:
+            logger.info(f"Error in creating DL model was:{e}")
+            raise Exception(f"Failed to create deep learning model: {e}")
+    
+        try:
+            logger.info("Continue processing. Run detection with deep learning")
+            detections = []
+            for station_stream in self.volcan_stream:
+                
+                detections.extend(process_deep_learning.get_detections(self.xaap_config,Stream(station_stream),deep_learning_model))
+
+        except Exception as e:
+            logger.info(f"Error in processing. Error in detection  DL was:{e}")
+
+        if len(detections) > 0:
+
+            try:
+                coincidence_detections = process_deep_learning.coincidence_detection_deep_learning(self.xaap_config,detections)
+
+                self.triggers = coincidence_detections
+                self.plot_triggers()
+                logger.info(f"Coincidence triggers found: {len(self.triggers)}")
+                '''
+                logger.info(f"@@@@@@@@@@@@FIN DE COINCIDENCE PICKS WAS:")
+                for c_p in coincidence_detections:
+                    print(c_p)
+                '''
+            except Exception as e:
+                print(f"Error in coincidence detection was: {e}")
+
+
+
+    def gui_detection_deep_learning_old(self):
         ##get picks and detections 
 
         ###self.picks, self.triggers = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)

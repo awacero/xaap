@@ -443,7 +443,11 @@
                 "stead"
                 
               ],
-              "value":"phasenet_cotopaxi_stead"
+              "limits":[
+                "stead",
+                "original"
+                ],
+              "value":"stead"
             },
             "coincidence_picks": {
                 "type": "int",
@@ -481,6 +485,11 @@
               "type":"str",
               "visible":true,
               "value":"./data/classifications/"
+            },
+            "output_comparation_folder":{
+              "type":"str",
+              "visible":true,
+              "value":"./data/comparations/"
             }
           }
         },

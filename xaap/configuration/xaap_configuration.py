@@ -83,6 +83,8 @@ def configure_parameters_from_gui(json_xaap_config):
 
     output_detection_folder = json_config['children']['parameters']['children']['output_data']['children']["output_detection_folder"]['value']
     output_classification_folder = json_config['children']['parameters']['children']['output_data']['children']["output_classification_folder"]['value']
+    output_comparation_folder = json_config['children']['parameters']['children']['output_data']['children']["output_comparation_folder"]['value']
+
 
     config = configparser.ConfigParser()
 
@@ -122,7 +124,7 @@ def configure_parameters_from_gui(json_xaap_config):
     config.add_section("output_data")
     config.set("output_data","output_detection_folder",f"{output_detection_folder}")
     config.set("output_data","output_classification_folder",f"{output_classification_folder}")
-
+    config.set("output_data","output_comparation_folder",f"{output_comparation_folder}")
     config.add_section("xaap_directories")
     config.set("xaap_directories","configuration_folder",f"{xaap_config_dir}")
     config.set("xaap_directories","data_folder",f"{xaap_data_dir}")
