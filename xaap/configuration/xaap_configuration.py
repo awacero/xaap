@@ -27,6 +27,15 @@ def configure_logging():
 
 
 def configure_parameters_from_gui(json_xaap_config):
+
+    """
+    Carga la configuración desde un archivo JSON para crear un objeto de configuración xaapConfig 
+
+    Args: 
+        json_xaap_config (json object): JSON string created from xaap_gui Paremeter tree object
+    Returns:
+        xaapConfig object: 
+    """
     
     logger.info("start configuration of xaap")       
     json_config = json.loads(json_xaap_config)
@@ -128,32 +137,52 @@ def configure_parameters_from_gui(json_xaap_config):
 
 def configure_parameters_from_config_file(config_file):
     
+    """
+    Lee un archivo de configuración y configura los parámetros de XAAP.
+    
+    Esta función inicializa un objeto configparser y lee los parámetros de configuración
+    desde un archivo de texto. Utiliza estos parámetros para configurar las rutas de los
+    archivos de configuración del servidor de datos mSEED y de configuración de volcanes y estaciones.
+    También establece y actualiza una sección de directorios en la configuración para
+    incluir rutas de configuración y de datos de XAAP.
+    
+    Parameters:
+    - config_file: Una cadena de texto con la ruta al archivo de configuración de XAAP.
+    
+    Returns:
+    Un objeto de configuración de XAAP que contiene todos los parámetros de configuración.
+    
+    Raises:
+    - FileNotFoundError: Si alguno de los archivos de configuración no se encuentra en la ruta proporcionada.
+    - configparser.Error: Si hay un error al parsear el archivo de configuración.
+    
+    Nota: Esta función también actualiza el objeto de configuración con rutas completas
+    a los archivos de configuración necesarios y los directorios de trabajo de XAAP.
+    """
+
+
     logger.info("start configuration of xaap from config text file")       
     
-    config = configparser.ConfigParser()
-    config.read(config_file)   
-
-    mseed_server_config_file = Path(xaap_config_dir, config['mseed']['server_config_file'])
-    volcan_volcanoes_configuration_file = Path(xaap_config_dir,config['volcan_configuration']['volcanoes_config_file'])
-    volcan_station_file = Path(xaap_config_dir,config['volcan_configuration']['stations_config_file'])
+    # Inicializar el parser de configuración y leer el archivo de configuración
+    configuration_from_cfg = configparser.ConfigParser()
+    configuration_from_cfg.read(config_file)   
 
 
-    config.set("mseed","server_config_file",f"{mseed_server_config_file}")
-    config.set("volcan_configuration","volcanoes_config_file",f"{volcan_volcanoes_configuration_file}")
-    config.set("volcan_configuration","stations_config_file",f"{volcan_station_file}")
+    #Modificar los valores obtenidos desde el archivo .cfg 
+    # Construir rutas completas para los archivos de configuración necesarios y actualizar el objeto de configuración
+    # Actualizar el objeto de configuración con las rutas completas
+    mseed_server_config_file = Path(xaap_config_dir, configuration_from_cfg['mseed']['server_config_file'])
+    volcan_volcanoes_configuration_file = Path(xaap_config_dir,configuration_from_cfg['volcan_configuration']['volcanoes_config_file'])
+    volcan_station_file = Path(xaap_config_dir,configuration_from_cfg['volcan_configuration']['stations_config_file'])
+    configuration_from_cfg.set("mseed","server_config_file",f"{mseed_server_config_file}")
+    configuration_from_cfg.set("volcan_configuration","volcanoes_config_file",f"{volcan_volcanoes_configuration_file}")
+    configuration_from_cfg.set("volcan_configuration","stations_config_file",f"{volcan_station_file}")
 
-    config.add_section("xaap_directories")
-    config.set("xaap_directories","configuration_folder",f"{xaap_config_dir}")
-    config.set("xaap_directories","data_folder",f"{xaap_data_dir}")
+    # Añadir una sección de directorios de XAAP y configurar las rutas de los directorios de configuración y datos
+    configuration_from_cfg.add_section("xaap_directories")
+    configuration_from_cfg.set("xaap_directories","configuration_folder",f"{xaap_config_dir}")
+    configuration_from_cfg.set("xaap_directories","data_folder",f"{xaap_data_dir}")
 
-    '''
-    for section_name in config.sections():
-        print(f"[{section_name}]")
-        for key, value in config[section_name].items():
-            print(f"{key} = {value}")
-        print()  
-    '''
 
-    xaap_configuration = xaapConfig(config)
 
-    return xaap_configuration
+    return  xaapConfig(configuration_from_cfg)

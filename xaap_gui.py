@@ -155,7 +155,9 @@ class xaapGUI(QWidget):
 
         # Save the state of the xaap_parameters object as a JSON string
         xaap_state = xaap_parameters.saveState()
-        self.json_xaap_state = json.dumps(xaap_state, indent=2)
+        
+        #Not used since this value is overwritten in gui_update_parameters. Delete if does not seem to affect
+        ##self.json_xaap_state = json.dumps(xaap_state, indent=2)
 
         return xaap_parameters
 
@@ -522,8 +524,9 @@ if __name__ == '__main__':
     print("call logging configuration")
     logger = configure_logging()
     logger.info("Logging configurated")
+
     '''Call the program with arguments or use default values'''
-    parser = argparse.ArgumentParser(description='XAAP_GUI Configuration')
+    parser = argparse.ArgumentParser(description='XAAP_GUI will use default configuration found in ./config/xaap_gui.json')
     parser.add_argument('--detect_datetime', type=str, default="default" ,help='datetime to detect ')
     parser.add_argument('--xaap_gui_json', type=str, default="xaap_gui.json", help='JSON config file for XAAP_GUI')
 

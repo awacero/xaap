@@ -104,7 +104,7 @@ def get_triggers_deep_learning(xaap_config, volcan_stream):
             return classify_results
         '''
         classify_results = model.classify(volcan_stream)
-        if len(classify_results) !=0:
+        if len(classify_results) != 0:
             return classify_results
         else:
             return []
