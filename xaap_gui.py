@@ -219,7 +219,8 @@ class xaapGUI(QWidget):
                 logger.info(f"$$$$ End of  DL detection was: Individual detections {len(detections)}")
                 for individual_detection in detections:
                     print(individual_detection)
-                
+            else:
+                logger.info(f"No detections made")
 
 
         except Exception as e:
@@ -232,9 +233,12 @@ class xaapGUI(QWidget):
 
                 self.triggers = coincidence_detections
                 self.plot_triggers()
-                logger.info(f"Coincidence triggers found: {len(self.triggers)}")
+                
                 for coincidence_detection in coincidence_detections:
                     print(coincidence_detection)
+                
+                logger.info(f"$$$$ End of  DL detection. INDIVIDUAL DETECTIONS: {len(detections)}")
+                logger.info(f"COINCIDENCE DETECTIONS: {len(self.triggers)}")
 
             except Exception as e:
                 print(f"Error in coincidence detection was: {e}")
