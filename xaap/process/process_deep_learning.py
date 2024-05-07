@@ -225,6 +225,8 @@ def get_detections(xaap_config, single_stream,model):
             for detection in classify_results.detections:
                 detection_xaap = DetectionXaap(detection,single_stream,padding_start, padding_end)
                 detections.append(detection_xaap)
+        else:
+            logger.info(f"Result was: {classify_results}")
 
 
         return detections
