@@ -136,7 +136,7 @@
               "default": "stations.json"
             },
             "volcan_name": {
-              "type": "str",
+              "type": "list",
               "readonly": false,
               "visible": true,
               "enabled": true,
@@ -147,8 +147,19 @@
               "syncExpanded": false,
               "title": null,
               "name": "volcan_name",
+                "values": [
+                    "COTOPAXI",
+                    "CHILES",
+                    "CAYAMBE",
+                    "GUAGUA"
+                ],  
+                "limits": [
+                    "COTOPAXI",
+                    "CHILES",
+                    "CAYAMBE"
+                ],
               "value": "COTOPAXI",
-              "default": "CHILES"
+              "default": "COTOPAXI"
             }
           }
         },
@@ -168,7 +179,34 @@
           "value": null,
           "default": null,
           "children": {}},    
+ 
+      "preprocess":{
         
+          "type":"group",
+          "readonly":false,
+          "expanded":true,
+          "name":"preprocess",
+          "children":{
+            "demean":{
+              "type":"bool",
+              "enabled":true,
+              "value": true
+            },
+            "merge":{
+              "type":"bool",
+              "enabled":true,
+              "value": true
+            },
+            "filter":{
+              "type":"bool",
+              "enabled":true,
+              "value": false
+            }
+          }
+        
+      },
+
+
         
         
         "filter": {
@@ -395,15 +433,76 @@
           "expanded":true,
           "children":{
             "model_name":{
-              "type":"str",
+              "type":"list",
               "visible":true,
+              "values":[
+                "BasicPhaseAE",
+                "CRED",
+                "EQTransformer",
+                "GPD",
+                "PhaseNet"
+              ],
+              "limits":[
+                "BasicPhaseAE",
+                "CRED",
+                "EQTransformer",
+                "GPD",
+                "PhaseNet"
+              ],
               "value":"EQTransformer"
             },
+
             "model_version":{
-              "type":"str",
+              "type":"list",
               "visible":true,
-              "value":"original"
-            }
+              "values":[
+                "original",
+                "phasenet_cotopaxi_stead",
+                "original_nonconservative",
+                "diting",
+                "ethz",
+                "geofon",
+                "instance",
+                "iquique",
+                "lendb",
+                "mlaapde",
+                "neic",
+                "obs",
+                "scedc",
+                "stead"
+                
+              ],
+              "limits":[
+                "stead",
+                "original",
+                "geofon",
+                "lendb",
+                "diting",
+                "instance",
+                "phasenet_cotopaxi_stead"
+                ],
+              "value":"stead"
+            },
+            "coincidence_picks": {
+                "type": "int",
+                "readonly": false,
+                "visible": true,
+                "enabled": true,
+                "renamable": false,
+                "removable": false,
+                "strictNaming": false,
+                "expanded": true,
+                "syncExpanded": false,
+                "title": null,
+                "name": "coincidence_picks",
+                "value": 3,
+                "step": 1,
+                "limits": [
+                  1,
+                  null
+                ],
+                "default": 2
+              }
           }
         },
 
@@ -414,12 +513,17 @@
             "output_detection_folder":{
               "type":"str",
               "visible":true,
-              "value":"/home/wacero/proyectos_codigo/xaap/data/detections/"
+              "value":"./data/detections/"
             },
             "output_classification_folder":{
               "type":"str",
               "visible":true,
-              "value":"/home/wacero/proyectos_codigo/xaap/data/classifications/"
+              "value":"./data/classifications/"
+            },
+            "output_comparation_folder":{
+              "type":"str",
+              "visible":true,
+              "value":"./data/comparations/"
             }
           }
         },

@@ -2,8 +2,10 @@
 
 """
 LAST CHANGE
-2023.10.16. 
+2024.05.07. 
 Add save  json and then  load it via terminal and delete old unused code 
+TODO
+Add the code to decide demean, merge and filter 
 """
 
 import sys,os
@@ -18,18 +20,16 @@ from aaa_features.features import FeatureVector
 from obspy import UTCDateTime
 
 from obspy.signal import filter
-from obspy import Stream, Trace, read
+from obspy import Stream, Trace
 import pickle
 from datetime import date, datetime
 from sklearn.ensemble import RandomForestClassifier
 from xaap.configuration import xaap_configuration
-from  seisbench.util.annotations import Pick as sb_pick
-from  seisbench.util.annotations import Detection as sb_detection
+from seisbench.util.annotations import Pick as sb_pick
+from seisbench.util.annotations import Detection as sb_detection
 from sklearn.preprocessing import StandardScaler
+
 from pyqtgraph.Qt import QtCore, QtGui
-
-
-
 from pyqtgraph.parametertree import Parameter, ParameterTree
 
 
@@ -165,10 +165,6 @@ class xaapGUI(QWidget):
         return xaap_parameters
 
 
-
-
-
-
     """FUNCTIONS LINKED TO THE GUI BUTTONS"""
     def gui_update_parameters(self):
         xaap_state = self.params.saveState()
@@ -222,11 +218,12 @@ class xaapGUI(QWidget):
             else:
                 logger.info(f"No detections made")
 
-
         except Exception as e:
             logger.info(f"Error in processing. Error in detection  DL was:{e}")
 
         if len(detections) > 0:
+
+            self.detections = detections
 
             try:
                 coincidence_detections = process_deep_learning.coincidence_detection_deep_learning(self.xaap_config,detections)
@@ -234,54 +231,23 @@ class xaapGUI(QWidget):
                 self.triggers = coincidence_detections
                 self.plot_triggers()
                 
+                
                 for coincidence_detection in coincidence_detections:
                     print(coincidence_detection)
                 
                 logger.info(f"$$$$ End of  DL detection. INDIVIDUAL DETECTIONS: {len(detections)}")
                 logger.info(f"COINCIDENCE DETECTIONS: {len(self.triggers)}")
 
+
+                for detection in self.detections:
+                    print(detection)
+                    if hasattr(detection.pick_detection,'phase'):
+                        print(detection.pick_detection.phase)
+                self.plot_picks()
+
             except Exception as e:
                 print(f"Error in coincidence detection was: {e}")
 
-
-
-    def gui_detection_deep_learning_old(self):
-        ##get picks and detections 
-
-        ###self.picks, self.triggers = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
-        ###self.picks, self.detections = detect_trigger.get_triggers_deep_learning(self.xaap_config,self.volcan_stream)
-
-        ####picks,detections = detect_trigger.coincidence_trigger_deep_learning(self.xaap_config,self.volcan_stream,2)
-        ##EXISTEN MAS PARAMETROS PARA COINCIDENCE TRIGGER DL PERO SE USAN LOS VALORES POR DEFECTO.  
-        picks,detections = detect_trigger.coincidence_pick_trigger_deep_learning(self.xaap_config,self.volcan_stream)
-
-        if len(picks) >0:
-            self.picks = picks
-            self.plot_picks()
-        if len(detections) > 0:
-            self.triggers = detections
-            self.plot_triggers()
-            logger.info(f"Coincidence triggers found: {len(self.triggers)}")
-        
-        '''
-        print(picks_detections)
-        if len(picks_detections) == 2:
-            self.picks = picks_detections[0]
-            self.triggers = picks_detections[1]
-            self.plot_picks()
-            self.plot_triggers()
-        
-        else:
-
-            if isinstance(picks_detections[0],sb_pick):
-                self.picks = picks_detections
-                self.plot_picks()
-            if isinstance(picks_detections[0],sb_detection):
-                self.triggers = picks_detections
-                self.plot_triggers()
-        '''
-        #self.plot_picks()
-        #self.plot_triggers()
 
     
     def plot_triggers(self):
@@ -300,26 +266,29 @@ class xaapGUI(QWidget):
 
     def plot_picks(self):
 
-        for pick in self.picks:
-            print("$$$$$$$$$$")
-            print(type(pick))
 
-            print(pick)
-            pick_time = UTCDateTime(pick["time"])
-            for trace_id in pick['trace_ids']:
+        for detection in self.detections:
+            if hasattr(detection.pick_detection,'phase'):
+                #print(detection.pick_detection.phase)
+
+
+                pick = detection.pick_detection
+
+                pick_time = UTCDateTime(pick.start_time)
+
                 for  plot_item in self.plot_items_list:
-                    if plot_item.getAxis("left").labelText.startswith(trace_id):
+                    if plot_item.getAxis("left").labelText.startswith(pick.trace_id):
 
 
-                        if pick['phase'][0] == 'P':
-                            label = pg.TextItem(text=pick['phase'][0], color='r', anchor=(0.5, 0))
+                        if pick.phase == 'P':
+                            label = pg.TextItem(text=pick.phase, color='r', anchor=(0.5, 0))
                             y_range = plot_item.viewRange()[1]
                             label_y_pos = y_range[1] - (y_range[1] - y_range[0]) * 0.1
                             label.setPos(pick_time.timestamp, label_y_pos)
                             vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='cyan')
 
-                        if pick['phase'][0] == 'S':
-                            label = pg.TextItem(text=pick['phase'][0], color='r', anchor=(0.5, 0))
+                        if pick.phase == 'S':
+                            label = pg.TextItem(text=pick.phase, color='r', anchor=(0.5, 0))
                             y_range = plot_item.viewRange()[1]
                             label_y_pos = y_range[1] - (y_range[1] - y_range[0]) * 0.1
                             label.setPos(pick_time.timestamp, label_y_pos)
@@ -329,46 +298,6 @@ class xaapGUI(QWidget):
                         plot_item.addItem(label)
 
 
-    def plot_picks_old(self):
-
-        for pick in self.picks:          
-
-            if pick.peak_time is None:
-                pick_time = pick.start_time
-            else:
-                pick_time = pick.peak_time
-
-            
-            for  plot_item in self.plot_items_list:
-                if plot_item.getAxis("left").labelText.startswith(pick.trace_id): #NO TIENES LOS CANALES, haz que no ncesite los canales y q coincida con EC.BTAM.* 
-                    
-
-                    if pick.phase == 'P':
-                        #plot_item.plot(pick_datetime.times(type='timestamp'),) ##AGREGAR EL PLOT DE UNA LINEA VERTICAL
-                        label = pg.TextItem(text=pick.phase, color='r', anchor=(0.5, 0))
-                        # Calculate the position of the label (e.g., at the top of the plot)
-                        y_range = plot_item.viewRange()[1]
-                        label_y_pos = y_range[1] - (y_range[1] - y_range[0]) * 0.1
-
-                        # Set the position of the label
-                        label.setPos(pick_time.timestamp, label_y_pos)
-                        vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='cyan')
-
-                    elif pick.phase == 'S':
-                        #plot_item.plot(pick_datetime.times(type='timestamp'),) ##AGREGAR EL PLOT DE UNA LINEA VERTICAL
-                        label = pg.TextItem(text=pick.phase, color='b', anchor=(0.5, 0))
-                        # Calculate the position of the label (e.g., at the top of the plot)
-                        y_range = plot_item.viewRange()[1]
-                        label_y_pos = y_range[1] - (y_range[1] - y_range[0]) * 0.1
-
-                        # Set the position of the label
-                        label.setPos(pick_time.timestamp, label_y_pos)
-                        vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='blue')
-
-                    plot_item.addItem(vertical_line)
-                    plot_item.addItem(label)
-            
-
 
 
     def plot_stream(self):
@@ -376,7 +305,6 @@ class xaapGUI(QWidget):
         logger.info("start plot_stream(). Clean plots")
         self.p1.clearPlots()
         self.p2.clearPlots()
-
 
         try:
             self.plot_window.clear()
@@ -405,9 +333,6 @@ class xaapGUI(QWidget):
 
 
     def classify_triggers(self):
-
-
-
 
         if self.triggers:
 
