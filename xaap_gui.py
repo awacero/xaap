@@ -12,6 +12,8 @@ import sys,os
 import json
 import argparse
 from pathlib import Path
+from turtle import right
+from typing_extensions import Self
 
 import numpy as np
 import pandas as pd
@@ -37,6 +39,13 @@ from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QMenuBar, QMenu, QAction, QWidget
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QVBoxLayout
+
+from PyQt5.QtGui import QFont, QColor 
+from PyQt5.QtWidgets import QLabel 
+
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QTextEdit, QWidget
+
+
 
 from PyQt5.QtWidgets import QSplitter
 from PyQt5.QtCore import Qt
@@ -100,19 +109,62 @@ class xaapGUI(QWidget):
         self.tree.setParameters(self.params, showTop=True)
         logger.info("Configure parameter signals")
 
+        """GUI buttons change colors"""
+
+        ##self.params.param("update_parameters").clicked.connect(lambda: self.change_button_color(self.params.param("update_parameters")))
+
+
+
+
         """GUI buttons linked with functions"""
 
         self.params.param("update_parameters").sigActivated.connect(lambda: self.gui_update_parameters())
+        self.params.param("update_parameters").sigActivated.connect(lambda: self.log_change("UPDATE_PARAMETERS: Parameters updated. Continue"))
+       
         """Get the stream for the configured volcano"""        
         self.params.param("request_data").sigActivated.connect(lambda: self.gui_request_stream())
+        self.params.param("request_data").sigActivated.connect(lambda: self.log_change("REQUEST_DATA: Waveforms requested. Continue"))
+
         """Preprocess: sort, merge and filter the stream for the configured volcano"""       
         self.params.param("pre_process").sigActivated.connect(lambda: self.gui_pre_process_stream())
+        self.params.param("pre_process").sigActivated.connect(lambda: self.log_change("PRE_PROCESS: Waveforms Preprocessed. Continue"))
+
         self.params.param('plot_stream').sigActivated.connect(self.plot_stream)
+        self.params.param("plot_stream").sigActivated.connect(lambda: self.log_change("PLOT_STREAM: Waveforms Ploted. Continue"))
+
         self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
         self.p1.sigRangeChanged.connect(self.set_p2_using_p1)
         self.params.param('detection_sta_lta').sigActivated.connect(lambda: self.gui_detection_sta_lta( ))
+        self.params.param("detection_sta_lta").sigActivated.connect(lambda: self.log_change("DETECTION_STA_LTA:  STA/LTA finished. Continue"))
+
         self.params.param('detection_deep_learning').sigActivated.connect(lambda: self.gui_detection_deep_learning( ))
+        self.params.param("detection_deep_learning").sigActivated.connect(lambda: self.log_change("DETECTION_DEEP_LEARNING:  Deep learning model finished. Continue"))
+
         self.params.param('classify_triggers').sigActivated.connect(self.classify_triggers)
+
+    def log_change(self,message):
+        formatted_message = self.format_bold_uppercase(message)
+        self.log.append(f"{formatted_message}")
+
+    def format_bold_uppercase(self, text):
+        # Reemplazar texto en mayúsculas con su versión en negritas
+        words = text.split()
+        formatted_words = [
+            f"<b>{word.lower()}</b>" if word.isupper() else word
+            for word in words
+        ]
+        return ' '.join(formatted_words)
+
+
+    def modify_parameter_style(self,param):
+        # Accede al widget del parámetro, esto es hipotético ya que depende de cómo accedas al widget real
+        widget = param.get_widget()
+        if isinstance(widget, QLabel):
+            font = QFont()
+            font.setBold(True)
+            widget.setFont(font)
+            widget.setStyleSheet("QLabel { color : red; }")
+            widget.setToolTip("Este parámetro fue modificado recientemente")
 
 
     def create_parameters(self):
@@ -449,21 +501,55 @@ class xaapGUI(QWidget):
         # Add menu to the menu bar
         self.menu_bar.addMenu(self.menu)
 
-        self.splitter = QSplitter()
-        self.splitter.setOrientation(Qt.Orientation.Horizontal)
-        self.layout.addWidget(self.splitter)
+        self.main_splitter = QSplitter(Qt.Horizontal)
+        right_splitter = QSplitter(Qt.Vertical)
+        self.layout.addWidget(self.main_splitter)
+
+
+
+
+        self.main_splitter.addWidget(right_splitter)
+
+
 
         self.tree = ParameterTree(showHeader=False)
-        self.splitter.addWidget(self.tree)
+        #self.main_splitter.addWidget(self.tree)
+
+        self.plot_window = GraphicsLayoutWidget()
+        self.plot_window.setWindowTitle("XAAP")
+
+        self.log = QTextEdit("Log Window")
+        self.log.setReadOnly(True)
+
+        #self.main_splitter.addWidget(self.plot_window)
+
+        right_splitter.addWidget(self.tree)
+        right_splitter.addWidget(self.log)
+
+
+        self.main_splitter.addWidget(self.plot_window)
+
+
+
+
+        """
+
+        self.splitter3 = QSplitter()
+        self.splitter3.setOrientation(Qt.Orientation.Vertical)
+        self.log = QTextEdit()
+        self.log.setReadOnly(True)
+        self.splitter3.addWidget(self.log)
+        self.main_splitter.addWidget(self.splitter3)
+        
 
         self.splitter2 = QSplitter()
         self.splitter2.setOrientation(Qt.Orientation.Vertical)
-        self.splitter.addWidget(self.splitter2)
+        self.main_splitter.addWidget(self.splitter2)
 
         self.plot_window = GraphicsLayoutWidget()
         self.plot_window.setWindowTitle("XAAP")
         self.splitter2.addWidget(self.plot_window)
-
+        """
         self.datetime_axis_1 = DateAxisItem(orientation='bottom', utcOffset=5)
         self.datetime_axis_2 = DateAxisItem(orientation='bottom', utcOffset=5)
 
@@ -472,6 +558,8 @@ class xaapGUI(QWidget):
 
         self.window_region = LinearRegionItem()
         self.p2.addItem(self.window_region, ignoreBounds=True)
+
+        ##add log
 
 
 
