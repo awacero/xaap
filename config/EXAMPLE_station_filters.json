@@ -1,0 +1,25 @@
+{
+"STATION_A":{
+    "name":"STATION_A",
+    "type":"None",
+    "frequency_1":"None",
+    "frequency_2":"None",
+    "order":"None"
+            },
+            
+"STATION_B":{
+    "name":"STATION_B",
+    "type":"bandpass",
+    "frequency_1":"0.05",
+    "frequency_2":"0.125"
+            },
+"STATION_C":{
+    "name":"STATION_C",
+    "type":"bandpass",
+    "frequency_1":"2",
+    "frequency_2":"8"
+            }
+            
+
+
+}
