@@ -134,9 +134,10 @@ Since 2024, the library depthphase raises an error related with numpy as shown i
 ![](images/error_depthphase.png)
 
 To "correct" this, comment the following line in the file shown below. 
-```
-vi ANACONDA_FOLDER/envs/xaap/lib/python3.10/site-packages/seisbench/models/__init__.py
-#from .depthphase import DepthFinder, DepthPhaseModel, DepthPhaseNet, DepthPhaseTEAM
+```bash
+$ vi ANACONDA_FOLDER/envs/xaap/lib/python3.10/site-packages/seisbench/models/__init__.py
+
+###from .depthphase import DepthFinder, DepthPhaseModel, DepthPhaseNet, DepthPhaseTEAM
 
 ```
 
