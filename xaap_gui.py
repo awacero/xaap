@@ -3,7 +3,9 @@
 """
 LAST CHANGE
 2024.05.07. 
-Add save  json and then  load it via terminal and delete old unused code 
+Add save json and then  load it via terminal and delete old unused code 
+2025.01.14
+Improve code, add docs, create UML diagrams
 TODO
 Add the code to decide demean, merge and filter 
 """
@@ -12,26 +14,16 @@ import sys,os
 import json
 import argparse
 from pathlib import Path
-from turtle import right
-from typing_extensions import Self
 
-import numpy as np
+import numpy as np ##import the whole library just for append?? 
 import pandas as pd
 import pyqtgraph as pg
 from aaa_features.features import FeatureVector
 from obspy import UTCDateTime
+from obspy import Stream
 
-from obspy.signal import filter
-from obspy import Stream, Trace
 import pickle
-from datetime import date, datetime
-from sklearn.ensemble import RandomForestClassifier
-from xaap.configuration import xaap_configuration
-from seisbench.util.annotations import Pick as sb_pick
-from seisbench.util.annotations import Detection as sb_detection
 from sklearn.preprocessing import StandardScaler
-
-from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 
 
@@ -39,25 +31,17 @@ from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QMenuBar, QMenu, QAction, QWidget
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QVBoxLayout
-
-from PyQt5.QtGui import QFont, QColor 
+from PyQt5.QtGui import QFont 
 from PyQt5.QtWidgets import QLabel 
-
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QTextEdit, QWidget
-
-
-
+from PyQt5.QtWidgets import QVBoxLayout, QTextEdit, QWidget
 from PyQt5.QtWidgets import QSplitter
 from PyQt5.QtCore import Qt
 from pyqtgraph import  GraphicsLayoutWidget
 from pyqtgraph.graphicsItems.DateAxisItem import DateAxisItem
 from pyqtgraph import LinearRegionItem
-
 from PyQt5.QtWidgets import QFileDialog
-
 from xaap.configuration.xaap_configuration import (configure_logging, configure_parameters_from_gui)
 from xaap.process import pre_process, request_data, detect_trigger, process_deep_learning
-
 
 
 
@@ -74,47 +58,89 @@ class xaapGUI(QWidget):
     """
 
     def save_parameters(self):
-        filename, _ = QFileDialog.getSaveFileName(self, "Save State..", "xaap_configuracion.json", "JSON Files (*.json)")
+        """
+        Save the application state to a JSON file after optionally modifying the state.
+
+        - Prompts the user to choose a file using QFileDialog.
+        - Ensures the file has a .json extension.
+        - Removes specific date parameters if they exist in the state.
+
+        Returns:
+            None
+        """
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Save State..", "xaap_configuracion.json", "JSON Files (*.json)")
         if not filename:  # Check if the Cancel button was clicked
             return
         if not filename.endswith('.json'):  # Ensure the file has the correct extension
             filename += '.json'
-        state = self.params.saveState()
-       
-        if "dates" in state["children"]["parameters"]["children"] :
-            logger.info("Removed dates from parameter")
-            del state["children"]["parameters"]["children"] ["dates"]["children"] ["start"]
-            del state["children"]["parameters"]["children"] ["dates"]["children"] ["end"]
+
+        try:
+            state = self.params.saveState()
         
-        with open(filename, 'w') as f:
-            json.dump(state, f, indent=2)
+            # Safely modify the state dictionary
+            dates_node = state.get("children", 
+                                   {}).get("parameters", {}).get("children", {}).get("dates", {}).get("children", {})
+            if dates_node:
+                logger.info("Removing 'start' and 'end' dates from parameters...")
+                dates_node.pop("start", None)  # Safely remove if it exists
+                dates_node.pop("end", None)
+
+            # Write the modified state to a file
+            with open(filename, 'w') as f:
+                json.dump(state, f, indent=2)
+                logger.info(f"State successfully saved to {filename}")
+
+
+        except Exception as e:
+            logger.error(f"Failed to save parameters: {e}", exc_info=True)
 
 
 
 
-    def __init__(self, detect_datetime='default',xaap_gui_json='xaap_gui.json',*args):
+
+    def __init__(self, args,detect_datetime='default',xaap_gui_json='xaap_gui.json'):
         """
-        Initializes the xaapGUI class.
+        Initializes the xaapGUI class and sets up the graphical user interface (GUI).
+        
+        Args:
+            detect_datetime (str): Default datetime for detection. Defaults to 'default'.
+            xaap_gui_json (str): Path to the JSON file for GUI configuration. Defaults to 'xaap_gui.json'.
+            *args: Additional arguments for customization.
         """
+        super().__init__()  # Use `super()` for proper initialization
+        ##QWidget.__init__(self)
+
+        # Initialize instance variables
         self.detect_datetime = detect_datetime
         self.xaap_gui_json = xaap_gui_json
 
-        logger.info("Start of all the process. Working directory %s" %xaap_dir)
+        if args.start_datetime:
+            self.start_datetime = args.start_datetime
+        if args.end_datetime:
+            self.end_datetime = args.end_datetime
 
-        QWidget.__init__(self)
+        logger.info(f"Start of all the process. Working directory {xaap_dir} " )
 
+        # Configure parameter tree
         self.setupGUI()       
         self.params = self.create_parameters()
 
         self.tree.setParameters(self.params, showTop=True)
-        logger.info("Configure parameter signals")
+        logger.info("Parameter signals configured.")
 
+
+        # Link GUI buttons to functions
+        self._configure_gui_signals()
+
+        # Link region changes and other signals
+        self._configure_region_signals()
+        
         """GUI buttons change colors"""
-
         ##self.params.param("update_parameters").clicked.connect(lambda: self.change_button_color(self.params.param("update_parameters")))
 
 
-
+    def _configure_gui_signals(self):
 
         """GUI buttons linked with functions"""
 
@@ -132,21 +158,41 @@ class xaapGUI(QWidget):
         self.params.param('plot_stream').sigActivated.connect(self.plot_stream)
         self.params.param("plot_stream").sigActivated.connect(lambda: self.log_change("PLOT_STREAM: Waveforms Ploted. Continue"))
 
-        self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
-        self.p1.sigRangeChanged.connect(self.set_p2_using_p1)
         self.params.param('detection_sta_lta').sigActivated.connect(lambda: self.gui_detection_sta_lta( ))
         self.params.param("detection_sta_lta").sigActivated.connect(lambda: self.log_change("DETECTION_STA_LTA:  STA/LTA finished. Continue"))
-
+ 
         self.params.param('detection_deep_learning').sigActivated.connect(lambda: self.gui_detection_deep_learning( ))
         self.params.param("detection_deep_learning").sigActivated.connect(lambda: self.log_change("DETECTION_DEEP_LEARNING:  Deep learning model finished. Continue"))
 
         self.params.param('classify_triggers').sigActivated.connect(self.classify_triggers)
 
+
+    def _configure_region_signals(self):
+        """Links region change signals to their handlers."""
+        self.window_region.sigRegionChanged.connect(self.set_p1_using_p2)
+        self.p1.sigRangeChanged.connect(self.set_p2_using_p1)
+
+
     def log_change(self,message):
+        """
+        Logs a formatted message to the GUI log.
+
+        Args:
+            message (str): The message to log. Uppercase words will be bolded.
+        """
         formatted_message = self.format_bold_uppercase(message)
         self.log.append(f"{formatted_message}")
 
     def format_bold_uppercase(self, text):
+        """
+        Formats uppercase words in the input text to bold lowercase.
+
+        Args:
+            text (str): The input text to format.
+
+        Returns:
+            str: The formatted text with uppercase words bolded and lowercased.
+        """
         # Reemplazar texto en mayúsculas con su versión en negritas
         words = text.split()
         formatted_words = [
@@ -155,88 +201,196 @@ class xaapGUI(QWidget):
         ]
         return ' '.join(formatted_words)
 
-
+    ##Creado Jorge Perez 
     def modify_parameter_style(self,param):
-        # Accede al widget del parámetro, esto es hipotético ya que depende de cómo accedas al widget real
-        widget = param.get_widget()
-        if isinstance(widget, QLabel):
-            font = QFont()
-            font.setBold(True)
-            widget.setFont(font)
-            widget.setStyleSheet("QLabel { color : red; }")
-            widget.setToolTip("Este parámetro fue modificado recientemente")
+        """
+        Modifies the style of a parameter's associated widget.
+
+        - Sets the font to bold.
+        - Changes text color to red.
+        - Adds a tooltip indicating recent modification.
+
+        Args:
+            param: The parameter object. It should provide a `get_widget` method to access its widget.
+        """
+        try:
+            widget = param.get_widget()  # Ensure this method exists
+            if isinstance(widget, QLabel):
+                font = QFont()
+                font.setBold(True)
+                widget.setFont(font)
+                widget.setStyleSheet("QLabel { color : red; }")
+                widget.setToolTip("Este parámetro fue modificado recientemente")
+                logger.info("Parameter style modified successfully.")
+            else:
+                logger.warning(f"Widget is not a QLabel: {type(widget).__name__}")
+        except AttributeError as e:
+            logger.error(f"Failed to modify parameter style: {e}", exc_info=True)
+
 
 
     def create_parameters(self):
         """
-        This function creates a ParameterTree object to store the configuration settings for the XAAP application. The structure
-        and default values for the parameters are read from a JSON file (xaap_gui.json). Additionally, the function sets the start
-        and end datetime parameters based on the current time or a test date.
+        Creates a ParameterTree object to store the configuration settings for the XAAP application.
+
+        The structure and default values for the parameters are loaded from a JSON file (`xaap_gui.json`).
+        Additionally, the function sets the `start` and `end` datetime parameters based on the
+        current time, a test date, or a user-specified datetime.
 
         Returns:
         --------
-        xaap_parameters: Parameter
-            A Parameter object representing the XAAP configuration settings, including the start and end datetime parameters.
+        Parameter:
+            A Parameter object representing the XAAP configuration settings, including `start` and `end` datetime parameters.
         """
 
-        # Read the xaap_gui.json file and create a Parameter object from its contents
+        # Initialize an empty Parameter object
         xaap_parameters = Parameter.create(name='xaap_configuration', type='group', children=[])
-        
-        with open(f'{xaap_config_dir}/{self.xaap_gui_json}', 'r') as f:
-            json_data = f.read()
-        xaap_parameters.restoreState(json.loads(json_data))
- 
-        # Set the start and end datetime parameters for testing or based on the current time
+        # Read the JSON configuration file
+        try:
+            json_path = os.path.join(xaap_config_dir, self.xaap_gui_json)
+            with open(json_path, 'r') as f:
+                json_data = f.read()
+            xaap_parameters.restoreState(json.loads(json_data))
+            logger.info("Successfully loaded configuration from %s", json_path)
+        except FileNotFoundError:
+            logger.error("Configuration file not found: %s", json_path)
+            raise
+        except json.JSONDecodeError as e:
+            logger.error("Invalid JSON in configuration file: %s", json_path)
+            raise ValueError(f"Invalid JSON format: {e}")
 
+        if self.start_datetime:
+            # User-specified datetime
+            try:
+                start_datetime = UTCDateTime(self.start_datetime)
 
-        if self.detect_datetime == "test":
+                # Check if end_datetime is provided; default to start_datetime + 1 day if not
+                if hasattr(self, 'end_datetime') and self.end_datetime:
+                    end_datetime = UTCDateTime(self.end_datetime)
+                else:
+                    end_datetime = start_datetime + 86400  # Add 1 day
+
+            except Exception as e:
+                logger.error("Invalid datetime format for detect_datetime or end_datetime: start=%s, end=%s",
+                            self.detect_datetime, getattr(self, 'end_datetime', 'N/A'))
+                raise ValueError(f"Invalid datetime format: {e}")
+
+        elif self.detect_datetime == "test":
             start_datetime = UTCDateTime("2023-08-17 13:00:00")
             end_datetime = UTCDateTime("2023-08-17  20:00:00")
-            #start_datetime = UTCDateTime("2023-04-01 02:00:00")
-            #end_datetime = UTCDateTime("2023-04-01 03:00:00")
             
         elif self.detect_datetime =="default":
-        
+            # Default to the last 3 hours
             start_datetime = (UTCDateTime.now() - 3600*3).strftime("%Y-%m-%d %H:%M:%S")
             end_datetime = (UTCDateTime.now()).strftime("%Y-%m-%d %H:%M:%S")
         
-        else:
-            start_datetime = UTCDateTime(self.detect_datetime)
-            end_datetime = start_datetime + 86400
 
-        # Add the start and end datetime parameters to the xaap_parameters Parameter object
-        xaap_parameters.child('parameters').child('dates').addChild({'name': 'start', 'type': 'str', 'value': f"{start_datetime}"})
-        xaap_parameters.child('parameters').child('dates').addChild({'name': 'end', 'type': 'str', 'value': f"{end_datetime}"})
-
-        # Save the state of the xaap_parameters object as a JSON string
-        xaap_state = xaap_parameters.saveState()
-        
-        #Not used since this value is overwritten in gui_update_parameters. Delete if does not seem to affect
-        ##self.json_xaap_state = json.dumps(xaap_state, indent=2)
+        # Add datetime parameters to the `xaap_parameters` object
+        try:
+            dates_node = xaap_parameters.child('parameters').child('dates')
+            dates_node.addChild({'name': 'start', 'type': 'str', 'value': str(start_datetime)})
+            dates_node.addChild({'name': 'end', 'type': 'str', 'value': str(end_datetime)})
+            logger.info("Added datetime parameters: start=%s, end=%s", start_datetime, end_datetime)
+        except AttributeError as e:
+            logger.error("Failed to add datetime parameters: %s", e)
+            raise
 
         return xaap_parameters
 
 
     """FUNCTIONS LINKED TO THE GUI BUTTONS"""
     def gui_update_parameters(self):
-        xaap_state = self.params.saveState()
-        self.json_xaap_state = json.dumps(xaap_state, indent=2)
-        """Create a configuration object using the gui parameters, then send it to the processing part"""
-        logger.info("Call update parameters")
-        self.xaap_config = configure_parameters_from_gui(self.json_xaap_state)
+        """
+        Updates the application parameters based on the current GUI state.
+
+        - Saves the current parameter state to a JSON string.
+        - Creates a configuration object using the saved parameters.
+        - Sends the configuration object to the processing component.
+
+        Raises:
+            ValueError: If saving the state or configuring parameters fails.
+        """
+
+
+        try:
+            # Save the current state of the parameters
+            xaap_state = self.params.saveState()
+            self.json_xaap_state = json.dumps(xaap_state, indent=2)
+
+            logger.info("Parameters saved successfully from the GUI state.")
+
+            # Create a configuration object using the saved state
+            self.xaap_config = configure_parameters_from_gui(self.json_xaap_state)
+            logger.info("Configuration updated successfully.")
+        except Exception as e:
+            logger.error("Failed to update parameters: %s", e, exc_info=True)
+            raise ValueError(f"Error in gui_update_parameters: {e}")
+        
+
+
 
     def gui_request_stream(self):
-        self.volcan_stream = request_data.request_stream(self.xaap_config)
-        # do other processing as necessary
-        print(self.volcan_stream)
+        """
+        Requests and retrieves the data stream for the configured volcano.
 
-    def gui_pre_process_stream(self):        
-        self.volcan_stream = pre_process.pre_process_stream(self.xaap_config,self.volcan_stream)
-        print(self.volcan_stream)
+        Retrieves the data stream using the current XAAP configuration and stores it in `self.volcan_stream`.
+
+        Raises:
+            ValueError: If the data stream request fails.
+        """
+
+        try:
+            logger.info("Requesting data stream...")
+            self.volcan_stream = request_data.request_stream(self.xaap_config)
+            logger.info("Data stream successfully retrieved.")
+            logger.debug(f"Stream details: {self.volcan_stream}")
+        except Exception as e:
+            logger.error("Failed to request data stream: %s", e, exc_info=True)
+            raise ValueError(f"Error in gui_request_stream: {e}")
+
+
+    def gui_pre_process_stream(self):
+        """
+        Preprocesses the retrieved data stream.
+
+        Processes the current data stream (`self.volcan_stream`) using the XAAP configuration
+        to sort, merge, and filter the stream.
+
+        Raises:
+            ValueError: If the preprocessing fails.
+        """
+        try:
+            if not self.volcan_stream:
+                raise ValueError("No data stream available for preprocessing.")
+
+            logger.info("Preprocessing the data stream...")
+            self.volcan_stream = pre_process.pre_process_stream(self.xaap_config, self.volcan_stream)
+            logger.info("Data stream preprocessing completed successfully.")
+            logger.debug(f"Processed stream details: {self.volcan_stream}")
+        except Exception as e:
+            logger.error("Failed to preprocess data stream: %s", e, exc_info=True)
+            raise ValueError(f"Error in gui_pre_process_stream: {e}")
 
     def gui_detection_sta_lta(self):
-        self.triggers = detect_trigger.get_triggers(self.xaap_config,self.volcan_stream)
-        self.plot_triggers()
+        """
+        Detects triggers using the STA/LTA method.
+
+        Processes the preprocessed data stream to detect triggers, then plots the results.
+
+        Raises:
+            ValueError: If trigger detection fails or if the data stream is not available.
+        """
+        try:
+            if not self.volcan_stream:
+                raise ValueError("No preprocessed data stream available for STA/LTA detection.")
+
+            logger.info("Performing STA/LTA trigger detection...")
+            self.triggers = detect_trigger.get_triggers(self.xaap_config, self.volcan_stream)
+            logger.info(f"Trigger detection completed successfully. Number of triggers: {len(self.triggers)}")
+            self.plot_triggers()
+        except Exception as e:
+            logger.error("Failed to detect triggers using STA/LTA: %s", e, exc_info=True)
+            raise ValueError(f"Error in gui_detection_sta_lta: {e}")
 
 
 
@@ -592,23 +746,54 @@ class xaapGUI(QWidget):
 
 if __name__ == '__main__':
 
-    print("call logging configuration")
-    logger = configure_logging()
-    logger.info("Logging configurated")
+    # Configure logging
+    print("Configuring logging...")
+    try:
+        logger = configure_logging()
+        logger.info("Logging configured successfully.")
+    except Exception as e:
+        print(f"Failed to configure logging: {e}")
+        sys.exit(1)
 
-    '''Call the program with arguments or use default values'''
-    parser = argparse.ArgumentParser(description='XAAP_GUI will use default configuration found in ./config/xaap_gui.json')
-    parser.add_argument('--detect_datetime', type=str, default="default" ,help='datetime to detect ')
-    parser.add_argument('--xaap_gui_json', type=str, default="xaap_gui.json", help='JSON config file for XAAP_GUI')
+
+    # Argument parser setup
+    parser = argparse.ArgumentParser(
+        description='XAAP_GUI will use the default configuration found in ./config/xaap_gui.json'
+    )
+    parser.add_argument(
+        '--detect_datetime',
+        type=str,
+        default="default",
+        help='Datetime to process. Overrides start_datetime and end_datetime if provided.',
+    )
+    parser.add_argument(
+        '--start_datetime',
+        type=str,
+        help='Start datetime to process. Overrides detect_datetime if provided.',
+    )
+    parser.add_argument(
+        '--end_datetime',
+        type=str,
+        help='End datetime to process. Defaults to start_datetime + 1 day if not provided.',
+    )
+    parser.add_argument(
+        '--xaap_gui_json',
+        type=str,
+        default="xaap_gui.json",
+        help='JSON config file for XAAP_GUI.',
+    )
 
     args = parser.parse_args()
+
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
+        #sys.exit(1)
 
-    # Ahora args.time y args.config contienen los valores proporcionados por el usuario
-    logger.info(f'detect_datetime {args.detect_datetime}')
+    # Log argument values
+    logger.info(f'detect_datetime: {args.detect_datetime}')
+    logger.info(f'start_datetime: {args.start_datetime}')
+    logger.info(f'end_datetime: {args.end_datetime}')
     logger.info(f'xaap_gui_json: {args.xaap_gui_json}')
-
 
     app = pg.mkQApp()
     app.setStyleSheet("""
@@ -616,10 +801,17 @@ if __name__ == '__main__':
     QMenu {font-size: 10px}
     QMenu QWidget {font-size: 10px}
                         """)
+    try: 
+        win = xaapGUI(args,
+            detect_datetime=args.detect_datetime,
+            xaap_gui_json=args.xaap_gui_json,
+                    )
+        win.setWindowTitle("xaap")
+        win.show()
+        win.resize(1600,900)
 
-    win = xaapGUI(detect_datetime=args.detect_datetime, xaap_gui_json=args.xaap_gui_json )
-    win.setWindowTitle("xaap")
-    win.show()
-    win.resize(1600,900)
+    except Exception as e:
+        logger.error(f"Failed to initialize XAAP GUI: {e}", exc_info=True)
+        sys.exit(1)   
 
     pg.exec()

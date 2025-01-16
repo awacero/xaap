@@ -19,7 +19,7 @@ def configure_logging():
 
     print("Start of logging configuration")
     logging.config.fileConfig(Path(xaap_config_dir,'logging.ini'), disable_existing_loggers=True)
-    logger = logging.getLogger("xaap")
+    logger = logging.getLogger(__name__)
     
     logger.info(f"Logger configured was: {logging.getLogger().handlers}")
     return logger
