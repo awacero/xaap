@@ -449,13 +449,14 @@
                 "GPD",
                 "PhaseNet"
               ],
-              "value":"EQTransformer"
+              "value":"PhaseNet"
             },
 
             "model_version":{
               "type":"list",
               "visible":true,
               "values":[
+                "volpick",
                 "original",
                 "phasenet_cotopaxi_stead",
                 "original_nonconservative",

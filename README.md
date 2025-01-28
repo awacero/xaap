@@ -128,6 +128,16 @@ python xaap_cli.py config/xaap_cli_config.cfg
 ```
 $ conda activate igxaap
 $ python xaap_gui.py --xaap_gui_json xaap_tungurahua.json --detect_datetime 2006-08-16
+```
+## Troubleshooting
+Since 2024, the library depthphase raises an error related with numpy as shown in the following image
+![](images/error_depthphase.png)
+
+To "correct" this, comment the following line in the file shown below. 
+```bash
+$ vi ANACONDA_FOLDER/envs/xaap/lib/python3.10/site-packages/seisbench/models/__init__.py
+
+###from .depthphase import DepthFinder, DepthPhaseModel, DepthPhaseNet, DepthPhaseTEAM
 
 ```
 
