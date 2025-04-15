@@ -4,12 +4,11 @@ Created on Oct 1, 2021
 @author: wacero
 '''
 
-import sys
+import sys,os
 import pandas as pd
 import numpy as np 
 from matplotlib import pyplot as plt
 from datetime import datetime
-import json 
 import get_mseed_data.get_mseed_utils as gmutils
 from sklearn.preprocessing import StandardScaler
 from sklearn import svm
@@ -37,6 +36,8 @@ def main():
 
 
         try:
+            print("#####")
+            print(run_param)
             volcano = run_param['ENVIRONMENT']['volcano']
             jobs = int(run_param['ENVIRONMENT']['jobs'])
             features_file = run_param['ENVIRONMENT']['features_file']
@@ -44,7 +45,7 @@ def main():
             max_features = int(run_param['ENVIRONMENT']['max_features'])
 
         except Exception as e:
-            raise Exception("Error reading parameters file: %s" %str(e))
+            raise Exception(f"Error reading parameters file: {e}")
 
         try:
             column_names = ['id_code','seismic_type']
@@ -89,6 +90,8 @@ def main():
             data_scaled_categorized = pd.DataFrame(x,columns=data.columns[2:])
             data_scaled_categorized['seismic_type'] = data_seismic_type_encode
 
+            print("@@@@@@@")
+            print(data_scaled_categorized.describe())
             data_scaled_categorized.head()
 
             """
@@ -109,6 +112,12 @@ def main():
             sfs.fit(x, y.ravel())
 
             #'''
+            # Check if the folder exists, if not create it
+            if not os.path.exists(features_selected_folder):
+                os.makedirs(features_selected_folder)
+                print(f"Folder created: {features_selected_folder}")
+            else:
+                print(f"Folder already exists: {features_selected_folder}")
 
             ##Plotear los resultados 
             fig1 = plot_sfs(sfs.get_metric_dict(), kind='std_dev') 
@@ -119,6 +128,7 @@ def main():
 
             best_features_pd = pd.DataFrame.from_dict(sfs.get_metric_dict()).T
             best_features_pd.to_csv("%s/%s_best_features_%s.csv" %(features_selected_folder, volcano, unique_id))
+
 
 
         except Exception as e:

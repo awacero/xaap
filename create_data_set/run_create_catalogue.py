@@ -1,4 +1,5 @@
-import os
+import os,sys
+sys.path.insert(0,"../xaap")
 from matplotlib import pyplot as plt
 from pathlib import Path
 import obspy
@@ -130,7 +131,10 @@ def get_event_params(event, split_date):
                 "source_magnitude_author": mag.creation_info.agency_id if mag.creation_info else None,
             })
 
-
+        if event.event_type:
+            event_params["event_type"] = event.event_type
+        else:
+            event_params["event_type"] = "--"
 
         # Determine the data split
         origin_time_str = str(origin.time)
@@ -299,8 +303,8 @@ def fetch_catalogue(fdsn_client, params):
 
 def process_catalogue(catalogue, fdsn_client, split_date, base_path):
     """Process the event catalogue, fetch waveforms, and write data."""
-    metadata_path = base_path / "metadata.csv"
-    waveforms_path = base_path / "waveforms.hdf5"
+    metadata_path = Path(base_path,  "metadata.csv")
+    waveforms_path = Path(base_path, "waveforms.hdf5")
 
     logger.info("Processing catalogue...")
     with sbd.WaveformDataWriter(metadata_path, waveforms_path) as writer:
@@ -346,24 +350,38 @@ def process_catalogue(catalogue, fdsn_client, split_date, base_path):
 def main(args):
     """Main function to execute the program."""
     try:
-        run_param = load_configuration(args.detection_train_config)
+        run_param = load_configuration(args.dataset_config)
 
         # Create MSEED and FDSN clients
         mseed_client = create_client("MSEED", run_param['mseed']['client_id'], run_param['mseed']['server_config_file'])
         fdsn_client = create_client("FDSN", run_param['fdsn']['client_id'], run_param['fdsn']['server_config_file'])
+        
+        dataset_path = os.path.expandvars(run_param["dataset"]["path"])
 
         # Fetch event catalogue
         catalogue, split_date = fetch_catalogue(fdsn_client, run_param['catalogue'])
 
         # Process catalogue
-        base_path = Path(".")
-        process_catalogue(catalogue, fdsn_client, split_date, base_path)
+  
+        process_catalogue(catalogue, fdsn_client, split_date, dataset_path)
 
         # Load dataset for training/testing
-        data = sbd.WaveformDataset(base_path, sampling_rate=100)
+        data = sbd.WaveformDataset(dataset_path, sampling_rate=100)
         logger.info(f"Training examples: {len(data.train())}")
         logger.info(f"Development examples: {len(data.dev())}")
         logger.info(f"Test examples: {len(data.test())}")
+
+
+        pick_list = []
+        for event in catalogue:
+            for pick in event.picks:
+                pick_list.append([pick.waveform_id['network_code'],pick.waveform_id['station_code'],pick.phase_hint,pick.time])
+
+        logger.info(f"Results: recovered {len(pick_list)} picks")
+        if len(pick_list) > 0:
+            logger.info(f"First picks {pick_list}")
+
+
 
     except Exception as e:
         logger.error(f"Fatal error in main: {e}", exc_info=True)
@@ -374,199 +392,7 @@ def main(args):
 
 
 
-def main_old(args):
 
-    """Load parameters from plain text config file"""
-
-    '''
-    event_parameters = get_event_params(catalogue[0])
-
-    print(event_parameters)
-
-    trace_parameters = get_trace_params(catalogue[0].picks[0])
-
-    print(trace_parameters)
-
-    '''
-    configuration_file = args.detection_train_config
-
-    # Check if the configuration file exists
-    try:
-        logger.info(f"Validating configuration file: {configuration_file}")
-        file_path = gmutils.check_file(configuration_file)
-        logger.info(f"Configuration file found: {file_path}")
-    except FileNotFoundError as e:
-        logger.error(f"Configuration file not found: {configuration_file}")
-        raise FileNotFoundError(f"Configuration file does not exist: {configuration_file}") from e
-    except Exception as e:
-        logger.error(f"Unexpected error while checking configuration file: {e}")
-        raise Exception(f"Error checking configuration file: {e}") from e
-
-    # Read and parse the configuration parameters
-    try:
-        logger.info(f"Reading configuration parameters from file: {configuration_file}")
-        run_param = gmutils.read_parameters(configuration_file)
-        logger.info(f"Configuration parameters successfully loaded.")
-    except ValueError as e:
-        logger.error(f"Invalid configuration format in file: {configuration_file}. Error: {e}")
-        raise ValueError(f"Invalid configuration format: {e}") from e
-    except Exception as e:
-        logger.error(f"Unexpected error while reading configuration parameters: {e}")
-        raise Exception(f"Error reading configuration file: {e}") from e
-
-
-    try:
-        
-        mseed_id = run_param['mseed']['client_id']        
-        mseed_server_config_file = os.path.expandvars(run_param['mseed']['server_config_file'])
-        mseed_server_param = gmutils.read_config_file(mseed_server_config_file)
- 
-        mseed_client = get_mseed.choose_service(mseed_server_param[mseed_id])
-
-    except Exception as e:
-        logger.error(f"Error getting parameters: {e}")
-        raise Exception(f"Error getting parameters: {e}")
-
-
-    try:
-        
-        fdsn_id = run_param['fdsn']['client_id']        
-        fdsn_server_config_file = os.path.expandvars(run_param['fdsn']['server_config_file'])
-        fdsn_server_param = gmutils.read_config_file(fdsn_server_config_file)
-        fdsn_client = get_mseed.choose_service(fdsn_server_param[fdsn_id])
-
-    except Exception as e:
-        logger.error(f"Error creating FDSN client: {e}")
-        raise Exception(f"Error creating FDSN client: {e}")
-
-    try:
-
-        #get parameters from file 
-        start_time = run_param['catalogue']['start_time']
-        end_time = run_param['catalogue']['end_time']
-        split_date = run_param['catalogue']['split_date']
-        min_lat = float(run_param['catalogue']['min_lat'])
-        max_lat = float(run_param['catalogue']['max_lat'])
-        min_lon = float(run_param['catalogue']['min_lon'])
-        max_lon = float(run_param['catalogue']['max_lon'])
-
-
-        catalogue = get_event_from_fdsn(fdsn_client,start_time,end_time,min_lat,max_lat,min_lon, max_lon)
-
-        print(catalogue)
-    except Exception as e:
-        logger.error(f"Error creating FDSN client: {e}")
-        raise Exception(f"Error creating FDSN client: {e}")
-
-
-
-    try:
-
-
-        pass
-        ## GUARDA EL CATALOGO CON UN NOMBRE UNICO DEPENDIENDO DE INPUT PARAMS
-    except Exception as e:
-        logger.error(f"Error creating FDSN client: {e}")
-        raise Exception(f"Error creating FDSN client: {e}")
-
-    print(fdsn_client)
-    print(mseed_client)
-
-
-
-    
-    '''
-    client = Client("http://192.168.137.16:8080",timeout=100)
-
-    t0 = UTCDateTime(2022, 10, 16)
-    t1 = t0 + 1 * 24 * 60 * 60  # 6 days
-    split_date = "2022-10-20"
-
-    catalogue = client.get_events(starttime=t0, endtime=t1, minlatitude=-0.82, maxlatitude=-0.55, minlongitude=-78.57, maxlongitude=-78.30, eventtype='volcanic eruption' ,includearrivals=True)
-    #print(catalogue.__str__(print_all=True))
-    '''
-
-    catalogue.write("COTO.xml", format="QUAKEML")
-
-    catalogue.write("COTO.json", format="JSON")
-
-
-    
-    pick = catalogue[0].picks[1]  
-    print(pick)
-    trace_params = get_trace_params(pick)
-    waveform = get_waveforms(fdsn_client, pick, trace_params)
-
-    print("LLEGAAAA")
-
-    print(waveform)
-
-
-    base_path = Path(".")
-    metadata_path = base_path / "metadata.csv"
-    waveforms_path = base_path / "waveforms.hdf5"
-
-
-    # Iterate over events and picks, write to SeisBench format
-    with sbd.WaveformDataWriter(metadata_path, waveforms_path) as writer:
-        
-        # Define data format
-        writer.data_format = {
-            "dimension_order": "CW",
-            "component_order": "ZNE",
-            "measurement": "velocity",
-            "unit": "counts",
-            "instrument_response": "not restituted",
-        }
-        
-        for event in catalogue:
-            event_params = get_event_params(event, split_date)
-            for pick in event.picks:
-                trace_params = get_trace_params(pick)
-                waveforms = get_waveforms(fdsn_client, pick, trace_params)
-
-                print("####$$$$")
-                print(waveforms)
-                
-                if len(waveforms) == 0:
-                    logger.info("# No waveform data available")
-
-                    continue
-            
-                sampling_rate = waveforms[0].stats.sampling_rate
-                # Check that the traces have the same sampling rate
-                assert all(trace.stats.sampling_rate == sampling_rate for trace in waveforms)
-                
-                actual_t_start, data, _ = sbu.stream_to_array(
-                    waveforms,
-                    component_order=writer.data_format["component_order"],
-                )
-                
-                trace_params["trace_sampling_rate_hz"] = sampling_rate
-                trace_params["trace_start_time"] = str(actual_t_start)
-                
-                sample = (pick.time - actual_t_start) * sampling_rate
-                trace_params[f"trace_{pick.phase_hint}_arrival_sample"] = int(sample)
-                trace_params[f"trace_{pick.phase_hint}_status"] = pick.evaluation_mode
-                
-                writer.add_trace({**event_params, **trace_params}, data)
-
-    data = sbd.WaveformDataset(base_path, sampling_rate=100)
-
-
-    print("Training examples:", len(data.train()))
-    print("Development examples:", len(data.dev()))
-    print("Test examples:", len(data.test()))
-
-    print("METADATAAA")
-    print(data.metadata) 
-
-    fig = plt.figure(figsize=(10, 7))
-    ax = fig.add_subplot(111)
-    ax.plot(data.get_waveforms(0).T)
-    ##ax.axvline(data.metadata["trace_P1_arrival_sample"].iloc[0], color="k", lw=3)
-
-    plt.show()
 
 
 if __name__ == '__main__':
@@ -576,7 +402,7 @@ if __name__ == '__main__':
 
     '''Call the program with arguments or use default values'''
     parser = argparse.ArgumentParser(description='run_create_catalogue will use default configuration found in ./config/detection_training.cfg')
-    parser.add_argument("--detection_train_config",type=str, default="./config/detection_training.cfg", help='Text config file for RUN_CREATE_CATALOGUE')
+    parser.add_argument("--dataset_config",type=str, default="./config/detection_training.cfg", help='Text config file for RUN_CREATE_CATALOGUE')
     
     args = parser.parse_args()
     main(args)

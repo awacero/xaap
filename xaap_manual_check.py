@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
-from pathlib import Path
-import numpy as np
-
 import pyqtgraph as pg
 from pyqtgraph.widgets import MatplotlibWidget
-
 ###from pyqtgraph.Qt import QtGui, QtCore
-
 from pyqtgraph.Qt import QtGui
 from PyQt5.QtWidgets import QWidget
 from pyqtgraph.Qt import QtCore
@@ -16,50 +11,77 @@ from PyQt5.QtWidgets import QSplitter
 
 from pyqtgraph import TableWidget
 from pyqtgraph.parametertree import Parameter, ParameterTree
-import matplotlib.pyplot as plt
 #from mpl_axes_aligner import align
-
 from PyQt5.QtWidgets import QHeaderView , QPushButton, QShortcut, QApplication
 from PyQt5.QtGui import QKeySequence
-
 from PyQt5.QtWidgets import QComboBox
+
 import csv
+import matplotlib.pyplot as plt
+import argparse
 from xaap.models import xaap_check 
+from xaap.configuration.xaap_configuration import (configure_logging, configure_parameters_from_gui)
+import os, sys
+from pathlib import Path
+import numpy as np
+import json
+
 
 ##class xaapCheck(QtGui.QWidget):
 class xaapCheck(QWidget):
 
 
-    def __init__(self):
-
+    def __init__(self,args):
+        """
+        Initializes the xaap_manual_check.py and set up the GUI
+        Args:
+            *args: Additional arguments
+        
+        """
         xaap_check.logger.info("Continuation of all this")
-
-        ##QtGui.QWidget.__init__(self)
         QWidget.__init__(self)
-        self.classifications_path = Path(xaap_check.xaap_dir,"data/"+
-                                         "classifications/")
+
+        self.xaap_check_json = args.xaap_check_config
+
+
         
         self.setupGUI()
         self.params = self.create_parameters()
+
+        print("#########")
+        print(type(self.params))
+        for child in self.params:
+            for c in child:
+                print(c)
+        ###TODO 
+        ##CREA ALGO SIMILAR A COMO XAAP GUI CARGA LOS PARAMETROS 
+        
+        self.tree.setParameters(self.params, showTop=True)
+        logger.info("Parameter signals configured.")
+
+        self.classifications_path = Path(self.params.param( 'classification', 'classification_folder').value())
+
+        #'''
         if xaap_check.os.path.exists(self.classifications_path):
             classified_triggers_files =\
-                [xaap_check.os.path.splitext(p)[0]\
-                for p in xaap_check.os.listdir(self.classifications_path)]
-            self.params.param('Classification file').\
-                              setLimits(classified_triggers_files)
+                [xaap_check.os.path.splitext(p)[0] for p in xaap_check.os.listdir(self.classifications_path)]
+            self.params.param('classification','classification_file').setLimits(classified_triggers_files)
+        #'''
 
-        self.tree.setParameters(self.params, showTop=True)
-        xaap_check.connect_to_mseed_server(self)
+        '''
+        if os.path.exists(classification_folder):
+            classified_triggers_files = classification_folder for p in classification_folder.
+        '''
+        #TODO
+        #Mover a un mejor lugar
+        #Cargar primero la interfaz gráfica y que luego intente conectarse 
+        #xaap_check.connect_to_mseed_server(self)
 
-        self.table_widget.verticalHeader().\
-            sectionDoubleClicked.connect(self.get_plots)
+        self.table_widget.verticalHeader().sectionDoubleClicked.connect(self.get_plots)
         self.table_widget.verticalHeader().sectionClicked.connect(self.get_plots)
-        self.params.param('load_classifications').\
-            sigActivated.connect(self.load_data_to_tbl_widget)
+        self.params.param('load_classifications').sigActivated.connect(self.load_data_to_tbl_widget)
+        self.params.param('save_triggers').sigActivated.connect(self.save_table_to_csv)
         
-        self.params.param('save_triggers').\
-            sigActivated.connect(self.save_table_to_csv)
-
 
 
 
@@ -334,6 +356,22 @@ class xaapCheck(QWidget):
 
     def create_parameters(self):
 
+        xaap_parameters = Parameter.create(name="xaap_check_configuration",type='group',children=[])
+        xaap_check_json = Path(self.xaap_check_json)
+        try:
+            if xaap_check_json.exists():
+                with open(xaap_check_json,'r') as f:
+                    json_data = json.load(f)
+                    
+                    xaap_parameters.restoreState(json_data)
+            else:
+                logger.error(f"No configuration file exist: {xaap_check_json}")
+
+        except Exception as e:
+            logger.error(f"Error in create_parameters():{e}")
+
+
+        '''
         xaap_parameters = Parameter.create(
 
             name='xaap configuration',type='group',children=[
@@ -357,6 +395,11 @@ class xaapCheck(QWidget):
             {'name':'save_triggers','type':'action'}
                                                                          ]
                                                                          )
+        
+        
+        
+        
+        '''
         xaap_check.logger.info("End of set parameters")
         return xaap_parameters
 
@@ -366,6 +409,27 @@ class xaapCheck(QWidget):
         
 
 if __name__ == '__main__':
+
+    print("Configure logging...")
+    try:
+        logger = configure_logging()
+        logger.info("Logging configured successfully.")
+    except Exception as e:
+        print(f"Failed to configure logging: {e}")
+        sys.exit(1) 
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--xaap_check_config',
+        type=str,
+        default="./config/xaap_check.json",
+        help="xaap_check_config.cfg to run this module"
+    )
+    args = parser.parse_args()
+
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+
     app = pg.mkQApp()
     app.setStyleSheet("""
     QWidget {font-size: 15px}
@@ -373,7 +437,7 @@ if __name__ == '__main__':
     QMenu QWidget {font-size: 10px}
     """)
 
-    win = xaapCheck()
+    win = xaapCheck(args)
     win.setWindowTitle("xaap_check")
     win.showMaximized()
     win.resize(1100,700)

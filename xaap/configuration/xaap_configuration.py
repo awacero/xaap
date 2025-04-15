@@ -24,6 +24,8 @@ def configure_logging():
     logger.info(f"Logger configured was: {logging.getLogger().handlers}")
     return logger
 
+#def configure_parameters_check(json_xaap_config):
+
 
 
 def configure_parameters_from_gui(json_xaap_config):
@@ -80,6 +82,10 @@ def configure_parameters_from_gui(json_xaap_config):
     deep_learning_model_version = json_config['children']['parameters']['children']['deep_learning_picker']['children']['model_version']['value']
     deep_learning_coincidence_picks = json_config['children']['parameters']['children']['deep_learning_picker']['children']['coincidence_picks']['value']
 
+    classification_feature_file = json_config['children']['parameters']['children']['classification']['children']['feature_file']['value']
+    classification_feature_domains = json_config['children']['parameters']['children']['classification']['children']['feature_domains']['value']
+    classification_model_file = json_config['children']['parameters']['children']['classification']['children']['model_file']['value']
+
 
     output_detection_folder = json_config['children']['parameters']['children']['output_data']['children']["output_detection_folder"]['value']
     output_classification_folder = json_config['children']['parameters']['children']['output_data']['children']["output_classification_folder"]['value']
@@ -120,6 +126,12 @@ def configure_parameters_from_gui(json_xaap_config):
     config.set("deep_learning","model_name",deep_learning_model_name)
     config.set("deep_learning","model_version",deep_learning_model_version)
     config.set("deep_learning","coincidence_picks",f"{deep_learning_coincidence_picks}")
+
+    config.add_section("classification")
+    config.set("classification","feature_file",classification_feature_file)
+    config.set("classification","feature_domains",classification_feature_domains)
+    config.set("classification","model_file",classification_model_file)
+
 
     config.add_section("output_data")
     config.set("output_data","output_detection_folder",f"{output_detection_folder}")

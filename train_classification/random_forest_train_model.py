@@ -26,7 +26,6 @@ def main():
         unique_id = datetime.now().strftime("%Y%m%d%H%M%S")
         try:
             run_param = gmutils.read_parameters(sys.argv[1])
-            print("DDDDDDD")
             print(run_param)
         except Exception as e:
             raise Exception("Error reading configuration file: %s" %str(e))
@@ -53,7 +52,12 @@ def main():
 
             #Use just 2 types of events
             #data = data.loc[(data.seismic_type.str.contains('LP')) | data.seismic_type.str.contains('TREMI')| data.seismic_type.str.contains('EXP')|(data.seismic_type.str.contains('VT')) ]
-            data['seismic_type'].hist() 
+            #data['seismic_type'].hist() 
+            """Data sangay: LP EXP TREMI VT"""
+            volcan_labels = ["LP", "EXP", "TREMI","VT"]
+            data = data.loc[(data.seismic_type.str.contains('LP')) | data.seismic_type.str.contains('EXP')| data.seismic_type.str.contains('TREMI')|(data.seismic_type.str.contains('VT')) ]
+
+
 
             x_no_scaled = data.iloc[:,2:].to_numpy()
             scaler = StandardScaler()
@@ -72,7 +76,9 @@ def main():
             print(categories)
 
             ##CHOSE BEST FEATURES 
-            best_features =  [2, 3, 6, 8, 9, 11, 23, 26, 27, 29, 42, 44, 45, 47, 48, 50, 51, 52, 53, 63, 67, 71, 72, 73, 75, 95]
+            ##best_features =  [2, 3, 6, 8, 9, 11, 23, 26, 27, 29, 42, 44, 45, 47, 48, 50, 51, 52, 53, 63, 67, 71, 72, 73, 75, 95]
+            """Sangay features.2025.04.11"""
+            best_features = [9, 23, 26, 27, 28, 29, 31, 34, 48, 51, 62, 64, 69, 74, 75, 85, 86, 91, 93]
             #data_scaled_best = data_scaled.iloc[:,best_features]
             data_scaled_best = data_scaled.iloc[:,:]
 
@@ -104,7 +110,14 @@ def main():
             if not os.path.exists(model_path):
                 os.makedirs(model_path)
 
-            pickle.dump(rnd_clf, open(os.path.join(model_path,'%s_rf_%s.pkl'%(volcano,unique_id)),'wb'), protocol=4)
+            model_trained = os.path.join(model_path,f"{volcano}_rf_{unique_id}.pkl")
+            model_bundle ={
+                "model":rnd_clf,
+                "labels": volcan_labels
+            }
+            with open(model_trained,'wb') as f:
+                pickle.dump(model_bundle,f)
+            #pickle.dump(rnd_clf, open(os.path.join(model_path,'%s_rf_%s.pkl'%(volcano,unique_id)),'wb'), protocol=4)
             
             # Conversion pkl to json file in the same models folder
             json_path = model_path+'/%s_rf_%s.pkl'%(volcano,unique_id)

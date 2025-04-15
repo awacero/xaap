@@ -32,8 +32,7 @@ def get_features(sipass_row,mseed_client_id,client,network,location,features,out
         bool: True if the features were successfully computed and written, False otherwise.
     """
 
-
-    day_month_year  = sipass_row['FECHA']
+    day_month_year  = sipass_row["FECHA"]
     day,month,year = day_month_year.split("/")
     month = f"{int(month):02d}"
     day = f"{int(day):02d}"
@@ -88,7 +87,7 @@ def get_features(sipass_row,mseed_client_id,client,network,location,features,out
 def callback_function(result):
     
     if result:
-        print("Result of multiprocess: %s" %result)
+        print(f"Result of multiprocess: {result}")
     
 
 
@@ -134,7 +133,7 @@ def main():
             raise Exception(f"Error connecting to MSEED server: {e}")
 
         try:
-            sipass_data = pd.read_csv(sipass_db_file, sep=';')
+            sipass_data = pd.read_csv(sipass_db_file, sep=None)
         except Exception as e:
             raise Exception(f"Error reading SIPASS file: {e}")
 
@@ -156,8 +155,10 @@ def main():
 
         pool = multiprocessing.get_context('spawn').Pool(processes=cores)
 
-        results = [pool.apply_async(get_features, args=([row, mseed_client_id, client, network, location,
-                                                         features, output_feature_file]), callback=callback_function) for i, row in sipass_data.iloc[start_row:end_row].iterrows()]
+        results = [pool.apply_async(get_features, 
+                    args=([row, mseed_client_id, client, network, location,
+                    features, output_feature_file]), callback=callback_function) 
+                    for i, row in sipass_data.iloc[start_row:end_row].iterrows()]
 
         for i, res in enumerate(results):
             try:

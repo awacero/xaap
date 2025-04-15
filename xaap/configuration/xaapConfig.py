@@ -115,6 +115,10 @@ class xaapConfig():
         self.output_classification_folder = xaap_parameter["output_data"]["output_classification_folder"]
         self.output_comparation_folder = xaap_parameter['output_data']["output_comparation_folder"]
 
+        self.classification_feature_file = xaap_parameter["classification"]["feature_file"]
+        self.classification_feature_domains = xaap_parameter["classification"]["feature_domains"]
+        self.classification_model_file = xaap_parameter["classification"]["model_file"]
+
 
         self.xaap_folder_config = xaap_parameter["xaap_directories"]["configuration_folder"]
         self.xaap_folder_data = xaap_parameter["xaap_directories"]["data_folder"]

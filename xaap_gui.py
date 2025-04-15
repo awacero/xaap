@@ -164,7 +164,7 @@ class xaapGUI(QWidget):
         self.params.param('detection_deep_learning').sigActivated.connect(lambda: self.gui_detection_deep_learning( ))
         self.params.param("detection_deep_learning").sigActivated.connect(lambda: self.log_change("DETECTION_DEEP_LEARNING:  Deep learning model finished. Continue"))
 
-        self.params.param('classify_triggers').sigActivated.connect(self.classify_triggers)
+        self.params.param('classify_detections').sigActivated.connect(self.classify_detections)
 
 
     def _configure_region_signals(self):
@@ -259,7 +259,7 @@ class xaapGUI(QWidget):
             logger.error("Invalid JSON in configuration file: %s", json_path)
             raise ValueError(f"Invalid JSON format: {e}")
 
-        if self.start_datetime:
+        if hasattr(self,"start_datetime"):
             # User-specified datetime
             try:
                 start_datetime = UTCDateTime(self.start_datetime)
@@ -395,175 +395,295 @@ class xaapGUI(QWidget):
 
 
     def gui_detection_deep_learning(self):
+        """
+        Perform detection using a deep learning model.
 
-        """
-        Try to process each stream individually with the DL model
-        Process a single stream to recover the channel
-        The function should return a detection window with a P/S phase if available. 
+        - Creates a deep learning model based on the current configuration.
+        - Processes each stream in the volcano stream using the model to retrieve detections.
+        - Performs coincidence detection on individual detections.
+        - Updates the GUI with the resulting detections and triggers.
+
+        Raises:
+            Exception: If the model creation or detection process fails.
         """
         try:
-            logger.info("Try to create DL model")
+            # Step 1: Create the deep learning model
+            logger.info("Creating deep learning model...")
             deep_learning_model = process_deep_learning.create_model(self.xaap_config)
-            logger.info(f"SB model: {deep_learning_model.name} created")
+            logger.info(f"Deep learning model '{deep_learning_model.name}' created successfully.")
         except Exception as e:
-            logger.info(f"Error in creating DL model was:{e}")
+            logger.error("Error creating deep learning model: %s", e, exc_info=True)
             raise Exception(f"Failed to create deep learning model: {e}")
-    
+
         try:
-            logger.info("Continue processing. Run detection with deep learning")
+            # Step 2: Process streams to retrieve individual detections
+            logger.info("Running detection with deep learning model...")
             detections = []
             for station_stream in self.volcan_stream:
-                
-                detections.extend(process_deep_learning.get_detections(self.xaap_config,Stream(station_stream),deep_learning_model))
-            
-            if len(detections) > 0:
-                
-                logger.info(f"$$$$ End of  DL detection was: Individual detections {len(detections)}")
-                for individual_detection in detections:
-                    print(individual_detection)
+                stream_detections = process_deep_learning.get_detections(
+                    self.xaap_config, Stream(station_stream), deep_learning_model
+                )
+                detections.extend(stream_detections)
+
+            if detections:
+                logger.info(f"Deep learning detection completed. Number of individual detections: {len(detections)}")
+                for detection in detections:
+                    logger.debug(f"Detection: {detection}")
             else:
-                logger.info(f"No detections made")
+                logger.warning("No detections made by the deep learning model.")
+        except Exception as e:
+            logger.error("Error during detection processing: %s", e, exc_info=True)
+            raise Exception(f"Detection process failed: {e}")
+
+        if not detections:
+            return  # No detections, no further processing needed
+
+        self.detections = detections
+
+        try:
+            # Step 3: Perform coincidence detection
+            logger.info("Running coincidence detection...")
+            coincidence_detections = process_deep_learning.coincidence_detection_deep_learning(
+                self.xaap_config, detections
+            )
+            self.triggers = coincidence_detections
+            self.plot_triggers()
+
+            logger.info(f"Coincidence detection completed. Number of coincidence detections: {len(self.triggers)}")
+
+            for coincidence_detection in coincidence_detections:
+                logger.debug(f"Coincidence Detection: {coincidence_detection}")
+
+            # Step 4: Plot picks
+            for detection in self.detections:
+                logger.debug(f"Detection: {detection}")
+                if hasattr(detection.pick_detection, 'phase'):
+                    logger.debug(f"Phase: {detection.pick_detection.phase}")
+            self.plot_picks()
 
         except Exception as e:
-            logger.info(f"Error in processing. Error in detection  DL was:{e}")
-
-        if len(detections) > 0:
-
-            self.detections = detections
-
-            try:
-                coincidence_detections = process_deep_learning.coincidence_detection_deep_learning(self.xaap_config,detections)
-
-                self.triggers = coincidence_detections
-                self.plot_triggers()
-                
-                
-                for coincidence_detection in coincidence_detections:
-                    print(coincidence_detection)
-                
-                logger.info(f"$$$$ End of  DL detection. INDIVIDUAL DETECTIONS: {len(detections)}")
-                logger.info(f"COINCIDENCE DETECTIONS: {len(self.triggers)}")
+            logger.error("Error during coincidence detection: %s", e, exc_info=True)
+            raise Exception(f"Coincidence detection failed: {e}")
 
 
-                for detection in self.detections:
-                    print(detection)
-                    if hasattr(detection.pick_detection,'phase'):
-                        print(detection.pick_detection.phase)
-                self.plot_picks()
-
-            except Exception as e:
-                print(f"Error in coincidence detection was: {e}")
-
-
-    
+        
     def plot_triggers(self):
+        """
+        Plots the trigger windows on the appropriate plot items.
 
-        sta_lta_endtime_buffer = float(self.xaap_config.sta_lta_endtime_buffer)
+        - Uses the configuration parameter `sta_lta_endtime_buffer` to calculate the extended duration.
+        - Selects traces based on `trigger['trace_ids']` and slices the stream for the trigger duration.
+        - Plots the sliced data on the corresponding plot item.
+
+        Raises:
+            ValueError: If required data or configuration is missing.
+        """
+        try:
+            # Validate configuration
+            sta_lta_endtime_buffer = float(self.xaap_config.sta_lta_endtime_buffer)
+        except (AttributeError, ValueError) as e:
+            logger.error("Invalid or missing `sta_lta_endtime_buffer` in configuration: %s", e)
+            raise ValueError("Invalid `sta_lta_endtime_buffer` in configuration") from e
+
+        if not self.triggers:
+            logger.warning("No triggers available to plot.")
+            return
+
+        if not self.volcan_stream:
+            logger.error("No data in the stream to plot triggers.")
+            raise ValueError("The stream is empty. Cannot plot triggers.")
 
         for trigger in self.triggers:
-            for trace_id in trigger['trace_ids']:
+            trace_ids = trigger.get('trace_ids')
+            if not trace_ids:
+                logger.warning("Trigger missing `trace_ids`: %s", trigger)
+                continue
+
+            for trace_id in trace_ids:
+                # Match the trace ID to a plot item
                 for plot_item in self.plot_items_list:
                     if plot_item.getAxis("left").labelText == trace_id:
+                        # Select the trace and slice for the trigger window
                         trigger_trace_temp = self.volcan_stream.select(id=trace_id)
-                        trigger_window = trigger_trace_temp.slice(trigger['time'],trigger['time']+trigger['duration']*sta_lta_endtime_buffer)
-                        #plot_item.plot([trigger['time']],[0],pen=None,symbol='x')
-                        plot_item.plot(trigger_window[0].times(type='timestamp'),trigger_window[0].data,pen='r')
+                        if not trigger_trace_temp:
+                            logger.warning("No trace found for ID: %s", trace_id)
+                            continue
+
+                        try:
+                            trigger_window = trigger_trace_temp.slice(
+                                trigger['time'], 
+                                trigger['time'] + trigger['duration'] * sta_lta_endtime_buffer
+                            )
+                            if not trigger_window:
+                                logger.warning("Empty trigger window for trace ID: %s", trace_id)
+                                continue
+
+                            # Plot the trigger window
+                            plot_item.plot(
+                                trigger_window[0].times(type='timestamp'),
+                                trigger_window[0].data,
+                                pen='r'
+                            )
+                            logger.info(f"Plotted trigger for trace ID: {trace_id}")
+                        except Exception as e:
+                            logger.error("Error processing trigger for trace ID %s: %s", trace_id, e, exc_info=True)
 
 
     def plot_picks(self):
+        """
+        Plots "P" and "S" phase picks on the corresponding plot items.
 
+        For each detection, the function adds a vertical line and label at the pick's timestamp
+        based on its phase ("P" or "S").
+
+        Raises:
+            ValueError: If detections or necessary attributes are missing.
+        """
+        if not self.detections:
+            logger.warning("No detections available to plot.")
+            return
 
         for detection in self.detections:
-            if hasattr(detection.pick_detection,'phase'):
-                #print(detection.pick_detection.phase)
+            if not hasattr(detection.pick_detection, 'phase'):
+                logger.warning("Detection missing 'phase': %s", detection)
+                continue
 
-
-                pick = detection.pick_detection
-
+            pick = detection.pick_detection
+            try:
                 pick_time = UTCDateTime(pick.start_time)
+            except Exception as e:
+                logger.error("Invalid start time for pick: %s. Error: %s", pick.start_time, e, exc_info=True)
+                continue
 
-                for  plot_item in self.plot_items_list:
-                    if plot_item.getAxis("left").labelText.startswith(pick.trace_id):
+            if not pick.trace_id:
+                logger.warning("Missing trace ID for pick: %s", pick)
+                continue
 
+            # Plot for the corresponding trace ID
+            for plot_item in self.plot_items_list:
+                if plot_item.getAxis("left").labelText.startswith(pick.trace_id):
+                    # Consolidated logic for P and S phases
+                    phase_color = 'cyan' if pick.phase == 'P' else 'blue' if pick.phase == 'S' else None
+                    if phase_color:
+                        # Add label and vertical line
+                        label = pg.TextItem(text=pick.phase, color='r', anchor=(0.5, 0))
+                        y_range = plot_item.viewRange()[1]
+                        label_y_pos = y_range[1] - (y_range[1] - y_range[0]) * 0.1
+                        label.setPos(pick_time.timestamp, label_y_pos)
+                        vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen=phase_color)
 
-                        if pick.phase == 'P':
-                            label = pg.TextItem(text=pick.phase, color='r', anchor=(0.5, 0))
-                            y_range = plot_item.viewRange()[1]
-                            label_y_pos = y_range[1] - (y_range[1] - y_range[0]) * 0.1
-                            label.setPos(pick_time.timestamp, label_y_pos)
-                            vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='cyan')
-
-                        if pick.phase == 'S':
-                            label = pg.TextItem(text=pick.phase, color='r', anchor=(0.5, 0))
-                            y_range = plot_item.viewRange()[1]
-                            label_y_pos = y_range[1] - (y_range[1] - y_range[0]) * 0.1
-                            label.setPos(pick_time.timestamp, label_y_pos)
-                            vertical_line = pg.InfiniteLine(pos=pick_time.timestamp, angle=90, pen='blue')
-
+                        # Add to the plot
                         plot_item.addItem(vertical_line)
                         plot_item.addItem(label)
-
-
+                        logger.info(f"Plotted {pick.phase} pick at {pick_time} for trace ID {pick.trace_id}.")
+                    else:
+                        logger.warning(f"Unknown phase '{pick.phase}' for trace ID {pick.trace_id}.")
 
 
     def plot_stream(self):
+        """
+        Plots the seismic data streams in the GUI.
 
-        logger.info("start plot_stream(). Clean plots")
-        self.p1.clearPlots()
-        self.p2.clearPlots()
+        - Clears existing plots and initializes new ones based on the number of traces.
+        - Links the X-axis of all plots for synchronized scrolling.
 
+        Raises:
+            Exception: If an error occurs during plotting, it is logged and re-raised.
+        """
+        logger.info("Starting plot_stream. Clearing existing plots...")
+        
         try:
+            # Clear existing plots
+            self.p1.clearPlots()
+            self.p2.clearPlots()
             self.plot_window.clear()
-            self.plot_items_list=[]
+            self.plot_items_list = []
+
+            # Setup plots for each trace
             n_plots = len(self.volcan_stream)
-            for i in range(n_plots):
-                datetime_axis_i = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation = 'bottom',utcOffset=5)
-                plot_i = self.plot_window.addPlot(row=(3+i),col=0,axisItems={'bottom': datetime_axis_i})
-                view_box_i = plot_i.getViewBox()
-                view_box_i.setMouseMode(pg.ViewBox.RectMode)
-                self.plot_items_list.append(plot_i)
+            logger.info(f"Number of traces to plot: {n_plots}")
 
-            for i,tr_t in enumerate(self.volcan_stream):
-                self.plot_items_list[i].clearPlots()
-                self.plot_items_list[i].plot(tr_t.times(type="timestamp"),tr_t.data,pen='g')
-                self.plot_items_list[i].getAxis("left").setWidth(100)
-                self.plot_items_list[i].setLabel("left",text="%s.%s.%s.%s" %(tr_t.stats['network'],tr_t.stats['station'],tr_t.stats['location'],tr_t.stats['channel']))
+            if n_plots == 0:
+                logger.warning("No traces available in the stream to plot.")
+                return
 
-            vbox_0=self.plot_items_list[0]
-            for plot_item in  self.plot_items_list:
+            for i, trace in enumerate(self.volcan_stream):
+                # Create a new plot with a datetime axis
+                datetime_axis = pg.graphicsItems.DateAxisItem.DateAxisItem(orientation='bottom', utcOffset=5)
+                plot = self.plot_window.addPlot(
+                    row=(3 + i), col=0, axisItems={'bottom': datetime_axis}
+                )
+                view_box = plot.getViewBox()
+                view_box.setMouseMode(pg.ViewBox.RectMode)
+                self.plot_items_list.append(plot)
+
+                # Plot the trace data
+                logger.info(f"Plotting trace {i + 1}: {trace.id}")
+                plot.clearPlots()
+                plot.plot(trace.times(type="timestamp"), trace.data, pen='g')
+                plot.getAxis("left").setWidth(100)
+                plot.setLabel(
+                    "left",
+                    text=f"{trace.stats['network']}.{trace.stats['station']}.{trace.stats['location']}.{trace.stats['channel']}"
+                )
+
+            # Link X-axes for synchronized scrolling
+            logger.info("Linking X-axes for synchronized scrolling...")
+            vbox_0 = self.plot_items_list[0]
+            for plot_item in self.plot_items_list:
                 plot_item.setXLink(vbox_0)
-                
+
+            logger.info("Finished plot_stream successfully.")
         except Exception as e:
-            logger.error("Error in multiple plots was: %s" %str(e))
+            logger.error(f"Error in plot_stream: {e}", exc_info=True)
+            raise Exception(f"Error during plotting: {e}")
 
 
 
-    def classify_triggers(self):
+
+
+
+
+
+
+    def classify_detections(self):
+
+        domains = " ".join(self.xaap_config.classification_feature_domains.replace(","," ").split())
+        print("#####")
+        print(type(domains))
 
         if self.triggers:
 
-            self.triggers_traces = detect_trigger.create_trigger_traces(self.xaap_config,self.volcan_stream,self.triggers)
+            try:
+                logger.info("Recover trigger traces")
+                self.triggers_traces = detect_trigger.create_trigger_traces(self.xaap_config,self.volcan_stream,self.triggers)
+            except Exception as e:
+                logger.error(f"Error while retrieving trigger traces: {e}")
+ 
 
-
-            ##leer esto desde la configuracion
-            ## leer solo las mejores caracteristicas?
-            ####TODO: CAMBIAR A CONFIGRACION 
-            feature_config = {"features_file":"%s/config/features/features_00.json" %xaap_dir,
+            ##feature_config = {"features_file":"%s/config/features/features_00.json" %xaap_dir,
                         #"domains":"time spectral cepstral"}
-                        "domains":"spectral cepstral"}
-            #tungu_clf= pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'tungurahua_rf_20211007144655.pkl'),'rb'))
-            #chiles_rf_20230410092541
-            #volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20220902115108.pkl'),'rb'))
-            volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20230410092541.pkl'),'rb'))
+                        #"domains":"spectral cepstral"}
+            domains = " ".join(self.xaap_config.classification_feature_domains.replace(","," ").split())
+
+
+            feature_config = {"features_file":self.xaap_config.classification_feature_file,
+                              "domains":domains                             
+                              }
+
+            #volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20230410092541.pkl'),'rb'))
+            #volcano_classifier_labels = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
+            #volcano_classifier_labels = ['LP', 'EXP','TREMI','VT']
+
+            model_file = Path(f"{self.xaap_config.classification_model_file}")            
+            volcano_classifier = pickle.load(open(model_file,'rb'))
+            volcano_classifier_model = volcano_classifier["model"]
+            volcano_classifier_labels = volcano_classifier["labels"]
 
             classified_triggers_file = Path(xaap_dir,"data/classifications") / UTCDateTime.now().strftime("out_xaap_%Y.%m.%d.%H.%M.%S.csv")
             classification_file = open(classified_triggers_file,'a+')
-            #Como guardar categorias en  el modelo?
-            #categories = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
-            categories = ['LP', 'VT']
             features = FeatureVector(feature_config, verbatim=2)
             input_data = []
-
 
             logger.info("start feature calculation")
             for trace in self.triggers_traces:
@@ -576,14 +696,6 @@ class xaapGUI(QWidget):
                 row = np.append(file_code, features.featuresValues)
                 input_data.append(row)
 
-                '''
-                try:
-                    trace.write("%s/%s.mseed" %(trigger_dir,file_code),format="MSEED")
-
-                except Exception as e:
-                    print("error in write")
-                
-                '''
 
             '''Create pandas data frame from features vectors'''
             column_names = ['data_code']
@@ -609,35 +721,35 @@ class xaapGUI(QWidget):
             print(type(y_pred))
             print(y_pred.shape)
 
-
-
-
-
             for i in range(rows_length):
-                prediction = "%s,%s\n" %(data.iloc[i,0],categories[int(y_pred[i])])
+                #prediction = "%s,%s\n" %(data.iloc[i,0],volcano_classifier_labels[int(y_pred[i])])
+                prediction = f"{data.iloc[i,0],volcano_classifier_labels[int(y_pred[i])]}\n"
                 logger.info(prediction)
                 classification_file.write(prediction)
     
-    
-
     def setupGUI(self):
+        """
+        Sets up the GUI layout, including the menu bar, parameter tree, plot window, and log window.
+
+        - Initializes the main layout and menu bar with actions for saving parameters and toggling the parameter tree.
+        - Sets up a main splitter to organize the parameter tree, log window, and plot window.
+        - Adds datetime axes and a linear region item to the plot window for visualization.
+        """
+        # Initialize main layout
         self.layout = QVBoxLayout()
-        self.layout.setContentsMargins(0,0,0,0)
+        self.layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout)
 
+        # Create a container for the menu bar
+        logger.info("Setting up the menu bar...")
+        self.menu_bar_container = QWidget()
+        self.menu_bar_container.setFixedHeight(25)
+        self.layout.addWidget(self.menu_bar_container)
 
-        # Create a QWidget container for the menu bar
-        self.menu_container = QWidget()
-        self.menu_container.setFixedHeight(25)
-        self.layout.addWidget(self.menu_container)
-
-        # Create menu bar and set it as the layout for the menu container
-        self.menu_bar = QMenuBar(self.menu_container)
-        self.menu_container_layout = QVBoxLayout(self.menu_container)
-        self.menu_container_layout.setContentsMargins(0, 0, 0, 0)
-        self.menu_container_layout.addWidget(self.menu_bar)
-
-
+        self.menu_bar = QMenuBar(self.menu_bar_container)
+        self.menu_bar_container_layout = QVBoxLayout(self.menu_bar_container)
+        self.menu_bar_container_layout.setContentsMargins(0, 0, 0, 0)
+        self.menu_bar_container_layout.addWidget(self.menu_bar)
 
         # Create menu items and actions
         self.menu = QMenu("Menu")
@@ -651,70 +763,42 @@ class xaapGUI(QWidget):
         # Add actions to the menu
         self.menu.addAction(self.save_action)
         self.menu.addAction(self.toggle_action)
-
-        # Add menu to the menu bar
         self.menu_bar.addMenu(self.menu)
 
+        # Main splitter setup
+        logger.info("Setting up main splitter...")
         self.main_splitter = QSplitter(Qt.Horizontal)
         right_splitter = QSplitter(Qt.Vertical)
         self.layout.addWidget(self.main_splitter)
-
-
-
-
         self.main_splitter.addWidget(right_splitter)
 
-
-
+        # Parameter tree
         self.tree = ParameterTree(showHeader=False)
-        #self.main_splitter.addWidget(self.tree)
+        right_splitter.addWidget(self.tree)
 
-        self.plot_window = GraphicsLayoutWidget()
-        self.plot_window.setWindowTitle("XAAP")
-
+        # Log window
         self.log = QTextEdit("Log Window")
         self.log.setReadOnly(True)
-
-        #self.main_splitter.addWidget(self.plot_window)
-
-        right_splitter.addWidget(self.tree)
         right_splitter.addWidget(self.log)
 
-
-        self.main_splitter.addWidget(self.plot_window)
-
-
-
-
-        """
-
-        self.splitter3 = QSplitter()
-        self.splitter3.setOrientation(Qt.Orientation.Vertical)
-        self.log = QTextEdit()
-        self.log.setReadOnly(True)
-        self.splitter3.addWidget(self.log)
-        self.main_splitter.addWidget(self.splitter3)
-        
-
-        self.splitter2 = QSplitter()
-        self.splitter2.setOrientation(Qt.Orientation.Vertical)
-        self.main_splitter.addWidget(self.splitter2)
-
+        # Plot window setup
+        logger.info("Setting up plot window...")
         self.plot_window = GraphicsLayoutWidget()
         self.plot_window.setWindowTitle("XAAP")
-        self.splitter2.addWidget(self.plot_window)
-        """
+        self.main_splitter.addWidget(self.plot_window)
+
+        # Create datetime axes and plots
         self.datetime_axis_1 = DateAxisItem(orientation='bottom', utcOffset=5)
         self.datetime_axis_2 = DateAxisItem(orientation='bottom', utcOffset=5)
 
         self.p1 = self.plot_window.addPlot(row=1, col=0, axisItems={'bottom': self.datetime_axis_1})
         self.p2 = self.plot_window.addPlot(row=2, col=0, axisItems={'bottom': self.datetime_axis_2})
 
+        # Add linear region item for zooming or selection
         self.window_region = LinearRegionItem()
         self.p2.addItem(self.window_region, ignoreBounds=True)
 
-        ##add log
-
+        logger.info("GUI setup completed.")
 
 
 
