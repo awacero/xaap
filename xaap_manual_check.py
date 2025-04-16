@@ -41,41 +41,27 @@ class xaapCheck(QWidget):
         xaap_check.logger.info("Continuation of all this")
         QWidget.__init__(self)
 
-        self.xaap_check_json = args.xaap_check_config
-
-
+        self.xaap_check_json = args.xaap_check_config        
         
         self.setupGUI()
         self.params = self.create_parameters()
-
-        print("#########")
-        print(type(self.params))
-        for child in self.params:
-            for c in child:
-                print(c)
-        ###TODO 
-        ##CREA ALGO SIMILAR A COMO XAAP GUI CARGA LOS PARAMETROS 
-        
         self.tree.setParameters(self.params, showTop=True)
         logger.info("Parameter signals configured.")
 
         self.classifications_path = Path(self.params.param( 'classification', 'classification_folder').value())
 
-        #'''
-        if xaap_check.os.path.exists(self.classifications_path):
+        if os.path.exists(self.classifications_path):
             classified_triggers_files =\
-                [xaap_check.os.path.splitext(p)[0] for p in xaap_check.os.listdir(self.classifications_path)]
+                [os.path.splitext(p)[0] for p in os.listdir(self.classifications_path)]
             self.params.param('classification','classification_file').setLimits(classified_triggers_files)
-        #'''
 
-        '''
-        if os.path.exists(classification_folder):
-            classified_triggers_files = classification_folder for p in classification_folder.
-        '''
+
+
         #TODO
         #Mover a un mejor lugar
         #Cargar primero la interfaz gráfica y que luego intente conectarse 
-        #xaap_check.connect_to_mseed_server(self)
+        logger.info("Try to connect to a miniseed server")
+        xaap_check.connect_to_mseed_server(self)
 
         self.table_widget.verticalHeader().sectionDoubleClicked.connect(self.get_plots)
         self.table_widget.verticalHeader().sectionClicked.connect(self.get_plots)

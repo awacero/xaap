@@ -24,8 +24,8 @@ logger.setLevel(logging.INFO)
 def connect_to_mseed_server(self):
 
     try:
-        self.mseed_client_id = self.params['Parameters','MSEED','client_id']
-        mseed_server_config_file = xaap_config_dir / self.params['Parameters','MSEED','server_config_file']
+        self.mseed_client_id = self.params['mseed','client_id']
+        mseed_server_config_file = xaap_config_dir / self.params['mseed','server_config_file']
         mseed_server_param = gmutils.read_config_file(mseed_server_config_file)
         
         self.mseed_client = get_mseed.choose_service(mseed_server_param[self.mseed_client_id])
@@ -65,7 +65,7 @@ def get_trigger(self,trigger_code):
     net,station,location,channel,Y,m,d,H,M,S,window = trigger_code.split(".")
     if not location:
         location = ''
-    start_time=UTCDateTime("%s-%s-%sT%s:%s:%s"%(Y,m,d,H,M,S))
+    start_time = UTCDateTime("%s-%s-%sT%s:%s:%s"%(Y,m,d,H,M,S))
     window = int(window)
     end_time = start_time + window
 

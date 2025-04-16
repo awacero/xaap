@@ -90,7 +90,6 @@ def main():
             data_scaled_categorized = pd.DataFrame(x,columns=data.columns[2:])
             data_scaled_categorized['seismic_type'] = data_seismic_type_encode
 
-            print("@@@@@@@")
             print(data_scaled_categorized.describe())
             data_scaled_categorized.head()
 

@@ -96,6 +96,10 @@ class xaapConfig():
         self.datetime_start = UTCDateTime(xaap_parameter["dates"]["start"])
         self.datetime_end = UTCDateTime(xaap_parameter["dates"]["end"])
 
+        self.detrend = xaap_parameter["preprocess"]["detrend"]
+        self.merge = xaap_parameter["preprocess"]["merge"]
+        self.filter = xaap_parameter["preprocess"]["filter"]
+
         self.filter_freq_a = xaap_parameter["filter"]["freq_a"]
         self.filter_freq_b = xaap_parameter["filter"]["freq_b"]
         self.filter_type = xaap_parameter["filter"]["type"]

@@ -52,15 +52,19 @@ def configure_parameters_from_gui(json_xaap_config):
     volcan_volcan_name = json_config['children']['parameters']['children']['volcan_configuration']['children']\
                                             ['volcan_name']['value']
 
-
     datetime_start = json_config['children']['parameters']['children']['dates']['children']\
                                             ['start']['value']
 
-
     datetime_end = json_config['children']['parameters']['children']['dates']['children']\
                                             ['end']['value']
-
-
+    
+    preprocess_detrend = json_config['children']['parameters']['children']['preprocess']['children']\
+                                            ['detrend']['value']
+    preprocess_merge = json_config['children']['parameters']['children']['preprocess']['children']\
+                                            ['merge']['value']
+    preprocess_filter = json_config['children']['parameters']['children']['preprocess']['children']\
+                                            ['filter']['value']
+    
     filter_freq_a = json_config['children']['parameters']['children']['filter']['children']\
                                             ['freq_A']['value']
 
@@ -107,6 +111,11 @@ def configure_parameters_from_gui(json_xaap_config):
     config.add_section("dates")
     config.set("dates","start",datetime_start)
     config.set("dates","end",datetime_end)
+
+    config.add_section("preprocess")
+    config.set("preprocess","detrend",str(preprocess_detrend))
+    config.set("preprocess","merge",str(preprocess_merge))
+    config.set("preprocess","filter",str(preprocess_filter))
 
 
     config.add_section("filter")

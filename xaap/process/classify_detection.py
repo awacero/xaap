@@ -38,10 +38,7 @@ def classify_detection_SVM(xaap_config, volcan_stream, detections):
         detections_traces = detect_trigger.create_trigger_traces(xaap_config,volcan_stream,detections)
         logger.info("start feature calculation")
         for trace in detections_traces:
-            '''
-            print("!####")
-            print(trace)
-            '''
+
             ##Modificar file code para que incluya la ventana de end_time
             trace_window = int(trace.stats.endtime - trace.stats.starttime)
             file_code = "%s.%s.%s.%s.%s.%s" %(trace.stats.network,trace.stats.station,trace.stats.location,trace.stats.channel,trace.stats.starttime.strftime("%Y.%m.%d.%H.%M.%S"),trace_window)

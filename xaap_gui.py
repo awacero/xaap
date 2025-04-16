@@ -6,8 +6,6 @@ LAST CHANGE
 Add save json and then  load it via terminal and delete old unused code 
 2025.01.14
 Improve code, add docs, create UML diagrams
-TODO
-Add the code to decide demean, merge and filter 
 """
 
 import sys,os
@@ -159,10 +157,11 @@ class xaapGUI(QWidget):
         self.params.param("plot_stream").sigActivated.connect(lambda: self.log_change("PLOT_STREAM: Waveforms Ploted. Continue"))
 
         self.params.param('detection_sta_lta').sigActivated.connect(lambda: self.gui_detection_sta_lta( ))
-        self.params.param("detection_sta_lta").sigActivated.connect(lambda: self.log_change("DETECTION_STA_LTA:  STA/LTA finished. Continue"))
+        self.params.param("detection_sta_lta").sigActivated.connect(lambda: self.log_change(f"DETECTION_STA_LTA: {len(self.triggers)} detected. Continue"))
  
         self.params.param('detection_deep_learning').sigActivated.connect(lambda: self.gui_detection_deep_learning( ))
-        self.params.param("detection_deep_learning").sigActivated.connect(lambda: self.log_change("DETECTION_DEEP_LEARNING:  Deep learning model finished. Continue"))
+        self.params.param("detection_deep_learning").sigActivated.connect(lambda: self.log_change(f"DETECTION_DEEP_LEARNING:  {len(self.detections)} triggers; \
+                                                                                                    {len(self.triggers)} coincidence triggers. Continue"))
 
         self.params.param('classify_detections').sigActivated.connect(self.classify_detections)
 
@@ -247,7 +246,8 @@ class xaapGUI(QWidget):
         xaap_parameters = Parameter.create(name='xaap_configuration', type='group', children=[])
         # Read the JSON configuration file
         try:
-            json_path = os.path.join(xaap_config_dir, self.xaap_gui_json)
+            #json_path = os.path.join(xaap_config_dir, self.xaap_gui_json)
+            json_path = Path(self.xaap_gui_json)
             with open(json_path, 'r') as f:
                 json_data = f.read()
             xaap_parameters.restoreState(json.loads(json_data))
@@ -459,6 +459,10 @@ class xaapGUI(QWidget):
                 logger.debug(f"Detection: {detection}")
                 if hasattr(detection.pick_detection, 'phase'):
                     logger.debug(f"Phase: {detection.pick_detection.phase}")
+            
+            logger.info(f"###Result of detections was: {len(self.detections)}")
+            logger.info(f"###Result of coincidence detections (TRIGGERS) was: {len(self.triggers)}")
+
             self.plot_picks()
 
         except Exception as e:
@@ -575,7 +579,7 @@ class xaapGUI(QWidget):
                         # Add to the plot
                         plot_item.addItem(vertical_line)
                         plot_item.addItem(label)
-                        logger.info(f"Plotted {pick.phase} pick at {pick_time} for trace ID {pick.trace_id}.")
+                        ##logger.debug(f"Plotted {pick.phase} pick at {pick_time} for trace ID {pick.trace_id}.")
                     else:
                         logger.warning(f"Unknown phase '{pick.phase}' for trace ID {pick.trace_id}.")
 
@@ -649,31 +653,17 @@ class xaapGUI(QWidget):
     def classify_detections(self):
 
         domains = " ".join(self.xaap_config.classification_feature_domains.replace(","," ").split())
-        print("#####")
-        print(type(domains))
 
         if self.triggers:
-
             try:
                 logger.info("Recover trigger traces")
                 self.triggers_traces = detect_trigger.create_trigger_traces(self.xaap_config,self.volcan_stream,self.triggers)
             except Exception as e:
                 logger.error(f"Error while retrieving trigger traces: {e}")
- 
-
-            ##feature_config = {"features_file":"%s/config/features/features_00.json" %xaap_dir,
-                        #"domains":"time spectral cepstral"}
-                        #"domains":"spectral cepstral"}
-            domains = " ".join(self.xaap_config.classification_feature_domains.replace(","," ").split())
-
 
             feature_config = {"features_file":self.xaap_config.classification_feature_file,
                               "domains":domains                             
                               }
-
-            #volcano_classifier_model = pickle.load(open(os.path.join('%s/data/models' %xaap_dir,'chiles_rf_20230410092541.pkl'),'rb'))
-            #volcano_classifier_labels = [' BRAM ', ' CRD ', ' EXP ', ' HB ', ' LH ', ' LP ', ' TRARM ', ' TREMI ', ' TRESP ', ' VT ']
-            #volcano_classifier_labels = ['LP', 'EXP','TREMI','VT']
 
             model_file = Path(f"{self.xaap_config.classification_model_file}")            
             volcano_classifier = pickle.load(open(model_file,'rb'))
@@ -687,8 +677,6 @@ class xaapGUI(QWidget):
 
             logger.info("start feature calculation")
             for trace in self.triggers_traces:
-                print("!####")
-                print(trace)
                 ##Modificar file code para que incluya la ventana de end_time
                 trace_window = int(trace.stats.endtime - trace.stats.starttime)
                 file_code = "%s.%s.%s.%s.%s.%s" %(trace.stats.network,trace.stats.station,trace.stats.location,trace.stats.channel,trace.stats.starttime.strftime("%Y.%m.%d.%H.%M.%S"),trace_window)
@@ -716,16 +704,15 @@ class xaapGUI(QWidget):
 
             print(data_scaled.shape)
 
-            y_pred=volcano_classifier_model.predict(data_scaled)
-
-            print(type(y_pred))
-            print(y_pred.shape)
+            y_pred = volcano_classifier_model.predict(data_scaled)
+            logger.info(f"Classifications made were:{y_pred.shape}")
 
             for i in range(rows_length):
                 #prediction = "%s,%s\n" %(data.iloc[i,0],volcano_classifier_labels[int(y_pred[i])])
-                prediction = f"{data.iloc[i,0],volcano_classifier_labels[int(y_pred[i])]}\n"
-                logger.info(prediction)
+                prediction = f"{data.iloc[i,0]},{volcano_classifier_labels[int(y_pred[i])]}\n"
                 classification_file.write(prediction)
+        else:
+            logger.info(f"No triggers: {len(self.triggers)}")
     
     def setupGUI(self):
         """
@@ -863,7 +850,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--xaap_gui_json',
         type=str,
-        default="xaap_gui.json",
+        default="./config/xaap_gui.json",
         help='JSON config file for XAAP_GUI.',
     )
 

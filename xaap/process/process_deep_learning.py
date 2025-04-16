@@ -205,6 +205,7 @@ def get_detections(xaap_config, single_stream,model):
         detections = []
         padding_start = 10
         padding_end = 20
+
         if hasattr(classify_results, 'picks') and hasattr(classify_results, 'detections'):
             logger.info("Convert picks to detection_xaap")
             for pick in classify_results.picks:
@@ -213,7 +214,7 @@ def get_detections(xaap_config, single_stream,model):
 
             for detection in classify_results.detections:
                 detections.append(DetectionXaap(detection,single_stream,padding_start, padding_end))
-
+        
             
         elif hasattr(classify_results, 'picks'):
             logger.info("Convert picks to detection_xaap")
@@ -222,6 +223,7 @@ def get_detections(xaap_config, single_stream,model):
                 detections.append(detection_xaap)
 
         elif hasattr(classify_results, 'detections'):
+            logger.info("Model for detections")
             for detection in classify_results.detections:
                 detection_xaap = DetectionXaap(detection,single_stream,padding_start, padding_end)
                 detections.append(detection_xaap)
@@ -232,6 +234,8 @@ def get_detections(xaap_config, single_stream,model):
         return detections
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error using deep learning model from seisbench: {model.name}, error was: {e}")
         return []
 
