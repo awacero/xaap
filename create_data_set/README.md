@@ -52,13 +52,6 @@ EXAMPLE.stations.json
 
 ```
 
-# Run XAAP
-```
-conda activate xaap
-cd xaap/xaap
-python xaap_gui.py 
-```
-
 # Train the model 
 To create features for your seismic data, you can use the `create_feature.py` module. This module reads a configuration file with the necessary parameters to create the features, and then uses multiprocessing to process the data in parallel.
 
@@ -89,11 +82,6 @@ The features computed are stored in xaap/data/features/features_guagua_UNIQUEID.
 
 ![checking interface](./images/xaap_check_manual_1.jpeg)
 
-## XAAP running youtube video
-
-
-[![XAAP running](https://img.youtube.com/vi/faanQjSWj2Q/0.jpg)](https://youtu.be/faanQjSWj2Q)
-
 
 ## Train models 
 
@@ -123,12 +111,6 @@ cd xaap
 python xaap_cli.py config/xaap_cli_config.cfg
 
 ```
-=======
-## Run XAAP GUI
-```
-$ conda activate igxaap
-$ python xaap_gui.py --xaap_gui_json xaap_tungurahua.json --detect_datetime 2006-08-16
 
-```
 
 

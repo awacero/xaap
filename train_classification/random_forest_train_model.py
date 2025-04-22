@@ -14,126 +14,93 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics
 import pickle
-import json
 
 def main():
-    is_error =  False
 
-    if len(sys.argv)==1:
-        is_error = True
+    if len(sys.argv) < 2:
+        print(f"Invalid number of arguments. Usage: python {sys.argv[0]} ./config/profile_train_model_XXXX.cfg")
+        sys.exit(1)
+
+    unique_id = datetime.now().strftime("%Y%m%d%H%M%S")
+    try:
+        run_param = gmutils.read_parameters(sys.argv[1])
+        print(run_param)
+    except Exception as e:
+        raise Exception("Error reading configuration file: %s" %str(e))
+
+    try:
+        volcano = run_param['ENVIRONMENT']['volcano']
+        features_file = run_param['ENVIRONMENT']['features_file']
+        model_folder = run_param['ENVIRONMENT']['model_folder']
+        volcan_labels = list( map(str,run_param['ENVIRONMENT']['volcan_labels'].split(",")))
+        best_features = list(map(int,run_param['ENVIRONMENT']['best_features'].split(",")))
+
+    except Exception as e:
+        raise Exception(f"Error reading parameters file:{e}")
+    
+    try:
+        model_path=os.path.join("./" ,"%s" %model_folder)
+
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+
+        column_names = ['id_code','seismic_type']
+        data = pd.read_csv(features_file)
+        rows_length,column_length = data.shape
+
+        for i in range(column_length - 2):
+            column_names.append("f_%s" %i)
+
+        data.columns = column_names
+        data.columns = data.columns.str.replace(' ', '')
+        pattern = "|".join(volcan_labels)
+        """Take note about spaces""" 
+        data = data[data['seismic_type'].str.contains(pattern, regex=True, na=False)]
+        ##data = data.loc[(data.seismic_type.str.contains('LP')) | data.seismic_type.str.contains('EXP')| data.seismic_type.str.contains('TREMI') ]
+        #data = data[data['seismic_type'].isin(volcan_labels)]
         
-    else:
-        unique_id = datetime.now().strftime("%Y%m%d%H%M%S")
-        try:
-            run_param = gmutils.read_parameters(sys.argv[1])
-            print(run_param)
-        except Exception as e:
-            raise Exception("Error reading configuration file: %s" %str(e))
+        x_no_scaled = data.iloc[:,2:].to_numpy()
+        scaler = StandardScaler()
+        x = scaler.fit_transform(x_no_scaled)
+        data_scaled = pd.DataFrame(x,columns=data.columns[2:])
 
-        try:
-            volcano = run_param['ENVIRONMENT']['volcano']
-            features_file = run_param['ENVIRONMENT']['features_file']
-            model_folder = run_param['ENVIRONMENT']['model_folder']
+        ##CATEGORIZAR ORDINAL ENCODER
+        from sklearn.preprocessing import OrdinalEncoder
+        ordinal_encoder = OrdinalEncoder()
+        data_seismic_type = data[['seismic_type']]
+        data_seismic_type_encode = ordinal_encoder.fit_transform(data_seismic_type)
 
-        except Exception as e:
-            raise Exception("Error reading parameters file: %s" %str(e))
-        
-        try:
-            column_names = ['id_code','seismic_type']
-            data = pd.read_csv(features_file)
+        data_scaled_best = data_scaled.iloc[:,best_features].copy()
+        #data_scaled_best = data_scaled.iloc[:,:]
+        data_scaled_best['seismic_type'] = data_seismic_type_encode
 
-            rows_length,column_length = data.shape
+        train_data, test_data = train_test_split(data_scaled_best,test_size=0.2,random_state=42)
 
-            for i in range(column_length - 2):
-                column_names.append("f_%s" %i)
+        x_train = train_data.loc[:,train_data.columns !='seismic_type']
+        #y_train = train_data.loc[:,train_data.columns =='seismic_type']
+        y_train = train_data['seismic_type']
+        x_test = test_data.loc[:,test_data.columns !='seismic_type']
+        #y_test = test_data.loc[:,test_data.columns =='seismic_type']
+        y_test = test_data["seismic_type"]
+        rnd_clf = RandomForestClassifier(n_estimators=500, max_leaf_nodes=16, n_jobs=-1)
+        rnd_clf.fit(x_train,y_train)
 
-            data.columns = column_names
-            data.columns = data.columns.str.replace(' ', '')
+        y_pred = rnd_clf.predict(x_test)
 
-            #Use just 2 types of events
-            #data = data.loc[(data.seismic_type.str.contains('LP')) | data.seismic_type.str.contains('TREMI')| data.seismic_type.str.contains('EXP')|(data.seismic_type.str.contains('VT')) ]
-            #data['seismic_type'].hist() 
-            """Data sangay: LP EXP TREMI VT"""
-            volcan_labels = ["LP", "EXP", "TREMI","VT"]
-            data = data.loc[(data.seismic_type.str.contains('LP')) | data.seismic_type.str.contains('EXP')| data.seismic_type.str.contains('TREMI')|(data.seismic_type.str.contains('VT')) ]
+        model_trained = os.path.join(model_path,f"{volcano}_rf_{unique_id}.pkl")
+        model_bundle ={
+            "model":rnd_clf,
+            "labels": volcan_labels,
+            "features":best_features
+        }
+        with open(model_trained,'wb') as f:
+            pickle.dump(model_bundle,f)
 
+        print(f"RESULT OF TRAINING: \nAccuracy:",metrics.accuracy_score(y_test, y_pred))
+        print(f"Model stored as:{model_path}/{volcano}_rf_{unique_id}.pkl")
 
-
-            x_no_scaled = data.iloc[:,2:].to_numpy()
-            scaler = StandardScaler()
-            x = scaler.fit_transform(x_no_scaled)
-            data_scaled = pd.DataFrame(x,columns=data.columns[2:])
-
-            ##CATEGORIZAR ORDINAL ENCODER
-            from sklearn.preprocessing import OrdinalEncoder
-            ordinal_encoder = OrdinalEncoder()
-            data_seismic_type = data[['seismic_type']]
-            data_seismic_type_encode = ordinal_encoder.fit_transform(data_seismic_type)
-
-
-            categories = ordinal_encoder.categories_[0].tolist()
-
-            print(categories)
-
-            ##CHOSE BEST FEATURES 
-            ##best_features =  [2, 3, 6, 8, 9, 11, 23, 26, 27, 29, 42, 44, 45, 47, 48, 50, 51, 52, 53, 63, 67, 71, 72, 73, 75, 95]
-            """Sangay features.2025.04.11"""
-            best_features = [9, 23, 26, 27, 28, 29, 31, 34, 48, 51, 62, 64, 69, 74, 75, 85, 86, 91, 93]
-            #data_scaled_best = data_scaled.iloc[:,best_features]
-            data_scaled_best = data_scaled.iloc[:,:]
-
-            data_scaled_best['seismic_type'] = data_seismic_type_encode
-
-            print(data_scaled_best.head())
-
-
-
-
-            train_data, test_data = train_test_split(data_scaled_best,test_size=0.2,random_state=42)
-
-            x_train = train_data.loc[:,train_data.columns !='seismic_type']
-            y_train = train_data.loc[:,train_data.columns =='seismic_type']
-
-            x_test = test_data.loc[:,test_data.columns !='seismic_type']
-            y_test = test_data.loc[:,test_data.columns =='seismic_type']
-
-            
-
-            rnd_clf = RandomForestClassifier(n_estimators=500, max_leaf_nodes=16, n_jobs=-1)
-            rnd_clf.fit(x_train,y_train)
-
-            y_pred = rnd_clf.predict(x_test)
-            print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
-
-            model_path=os.path.join("./" ,"%s" %model_folder)
-
-            if not os.path.exists(model_path):
-                os.makedirs(model_path)
-
-            model_trained = os.path.join(model_path,f"{volcano}_rf_{unique_id}.pkl")
-            model_bundle ={
-                "model":rnd_clf,
-                "labels": volcan_labels
-            }
-            with open(model_trained,'wb') as f:
-                pickle.dump(model_bundle,f)
-            #pickle.dump(rnd_clf, open(os.path.join(model_path,'%s_rf_%s.pkl'%(volcano,unique_id)),'wb'), protocol=4)
-            
-            # Conversion pkl to json file in the same models folder
-            json_path = model_path+'/%s_rf_%s.pkl'%(volcano,unique_id)
-            with open(json_path, 'rb') as infile:
-                obj = pickle.load(infile)
-            json_obj = json.loads(json.dumps(obj, default=str))
-
-            json.dump(json_obj, open(os.path.join(model_path,'%s_rf_%s.json'%(volcano,unique_id)),'w',
-                encoding='utf-8'), ensure_ascii=False, indent=4)
-
-
-        except Exception as e:
-            print("Error in training model was: %s" %str(e))     
-
-    if is_error:
-        print(f'Usage: python {sys.argv[0]} profile_train_model_xxxx.txt ')    
+    except Exception as e:
+        print("Error in training model was: %s" %str(e))     
 
 
 if __name__ == "__main__": 

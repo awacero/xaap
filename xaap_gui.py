@@ -164,6 +164,7 @@ class xaapGUI(QWidget):
                                                                                                     {len(self.triggers)} coincidence triggers. Continue"))
 
         self.params.param('classify_detections').sigActivated.connect(self.classify_detections)
+        self.params.param("classify_detections").sigActivated.connect(lambda: self.log_change(f"CLASSIFICATION ended. Call xaap_check.py to review them."))      
 
 
     def _configure_region_signals(self):
@@ -644,13 +645,38 @@ class xaapGUI(QWidget):
 
 
 
-
-
-
-
-
-
     def classify_detections(self):
+        """
+        Clasifica las detecciones sísmicas (triggers) usando un modelo de aprendizaje automático previamente entrenado.
+
+        Este método realiza las siguientes tareas:
+        1. Recupera las formas de onda asociadas a cada trigger detectado.
+        2. Extrae características del dominio del tiempo, frecuencia o cepstral según la configuración.
+        3. Aplica un modelo de clasificación (por ejemplo, Random Forest) para predecir la clase de cada trigger.
+        4. Guarda las clasificaciones en un archivo CSV con nombre basado en la hora actual.
+
+        Requiere que:
+            - `self.triggers` contenga una lista de triggers detectados.
+            - `self.volcan_stream` contenga el stream de formas de onda.
+            - `self.xaap_config` tenga definidos:
+                - `classification_feature_domains`: dominios de características a usar (ej. "time freq").
+                - `classification_feature_file`: archivo con configuración de extracción de features.
+                - `classification_model_file`: archivo pickle con el modelo y etiquetas.
+
+        Atributos utilizados:
+            - `self.triggers`: lista de detecciones previas.
+            - `self.volcan_stream`: formas de onda original.
+            - `self.triggers_traces`: formas de onda por trigger (se asigna aquí).
+            - `self.xaap_config`: objeto de configuración del sistema.
+        
+        Manejo de errores:
+            - Si ocurre un error al recuperar trazas por trigger, se registra con `logger.error`.
+            - Si no hay triggers, se notifica con `logger.info`.
+
+        Archivos generados:
+            - Un archivo CSV bajo `data/classifications/` con las clasificaciones de cada trigger.
+
+        """
 
         domains = " ".join(self.xaap_config.classification_feature_domains.replace(","," ").split())
 
@@ -669,6 +695,7 @@ class xaapGUI(QWidget):
             volcano_classifier = pickle.load(open(model_file,'rb'))
             volcano_classifier_model = volcano_classifier["model"]
             volcano_classifier_labels = volcano_classifier["labels"]
+            best_features = volcano_classifier["features"]
 
             classified_triggers_file = Path(xaap_dir,"data/classifications") / UTCDateTime.now().strftime("out_xaap_%Y.%m.%d.%H.%M.%S.csv")
             classification_file = open(classified_triggers_file,'a+')
@@ -691,28 +718,29 @@ class xaapGUI(QWidget):
             rows_length,column_length = data.shape
 
             for i in range(column_length - 1):
-                column_names.append("f_%s" %i)
-
+                column_names.append(f"f_{i}")
+    
             data.columns = column_names
             data.columns = data.columns.str.replace(' ', '')
-
             x_no_scaled = data.iloc[:,1:].to_numpy()
-
             scaler = StandardScaler()
             x = scaler.fit_transform(x_no_scaled)
-            data_scaled = pd.DataFrame(x,columns=data.columns[1:])
+            x_best = x[:,best_features]
+            data_scaled_best = pd.DataFrame(x_best,columns=[f"f_{i}" for i in best_features])
 
-            print(data_scaled.shape)
-
-            y_pred = volcano_classifier_model.predict(data_scaled)
-            logger.info(f"Classifications made were:{y_pred.shape}")
+            y_pred = volcano_classifier_model.predict(data_scaled_best)
 
             for i in range(rows_length):
                 #prediction = "%s,%s\n" %(data.iloc[i,0],volcano_classifier_labels[int(y_pred[i])])
                 prediction = f"{data.iloc[i,0]},{volcano_classifier_labels[int(y_pred[i])]}\n"
                 classification_file.write(prediction)
+            
+            logger.info(f"Classifications made:{y_pred.shape}")
+            logger.info(f"Stored in: {classified_triggers_file}")
+
         else:
             logger.info(f"No triggers: {len(self.triggers)}")
+    
     
     def setupGUI(self):
         """
