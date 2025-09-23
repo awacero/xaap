@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from numbers import Real
 from typing import Iterable, List
 
 import matplotlib.pyplot as plt
@@ -19,6 +20,7 @@ from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import (
     QApplication,
     QComboBox,
+    QTableWidgetItem,
     QPushButton,
     QShortcut,
     QSplitter,
@@ -327,18 +329,77 @@ class xaapCheck(QWidget):
             rms,
         ) = xaap_check.get_trigger(self, trigger_code)
 
-        self._update_table_statistics(row, amp_max, rms)
+        period, frequency = self._estimate_period_frequency()
+        self._update_table_statistics(row, amp_max, rms, period, frequency)
         self._plot_time_series(max_trigger, min_trigger, max_loc, min_loc)
         self._plot_frequency_information()
 
-    def _update_table_statistics(self, row: int, amp_max: float, rms: float) -> None:
-        """Update amplitude and RMS columns with freshly computed values."""
-        amp_item = self.table_widget.item(row, 11)
-        if amp_item is not None:
-            amp_item.setText(str(amp_max))
-        rms_item = self.table_widget.item(row, 14)
-        if rms_item is not None:
-            rms_item.setText(str(rms))
+    def _update_table_statistics(
+        self,
+        row: int,
+        amp_max: float,
+        rms: float,
+        period: float | None,
+        frequency: float | None,
+    ) -> None:
+        """Update amplitude, RMS, period and frequency columns."""
+
+        self._set_table_item_text(row, 11, amp_max)
+        self._set_table_item_text(row, 14, rms)
+        self._set_table_item_text(row, 12, period)
+        self._set_table_item_text(row, 13, frequency)
+
+    def _set_table_item_text(
+        self, row: int, column: int, value: Real | str | None
+    ) -> None:
+        """Ensure a table item exists at ``row``, ``column`` and update its text."""
+
+        if value is None:
+            text = ""
+        elif isinstance(value, Real):
+            text = f"{float(value):.3f}"
+        else:
+            text = str(value)
+
+        item = self.table_widget.item(row, column)
+        if item is None:
+            item = QTableWidgetItem(text)
+            self.table_widget.setItem(row, column, item)
+        else:
+            item.setText(text)
+
+    def _estimate_period_frequency(self) -> tuple[float | None, float | None]:
+        """Return the dominant period and frequency for the current trigger."""
+
+        if len(self.trigger_stream) == 0:
+            return None, None
+
+        trace = self.trigger_stream[0]
+        data = np.asarray(trace.data)
+        if data.size < 2:
+            return None, None
+
+        sampling_rate = trace.stats.sampling_rate
+        demeaned = data - np.mean(data)
+        spectrum = np.abs(np.fft.rfft(demeaned))
+        if spectrum.size < 2:
+            return None, None
+
+        frequencies = np.fft.rfftfreq(demeaned.size, d=1.0 / sampling_rate)
+        peak_index = int(np.argmax(spectrum[1:]) + 1)
+        if peak_index >= frequencies.size:
+            return None, None
+
+        dominant_magnitude = float(spectrum[peak_index])
+        if dominant_magnitude <= 0.0:
+            return None, None
+
+        dominant_frequency = float(frequencies[peak_index])
+        if dominant_frequency <= 0.0:
+            return None, None
+
+        dominant_period = 1.0 / dominant_frequency
+        return dominant_period, dominant_frequency
 
     def _plot_time_series(
         self,
