@@ -446,29 +446,71 @@ class xaapCheck(QWidget):
         self.mw_fig.clf()
         self.mw_axes = self.mw_fig.add_subplot(111)
 
-        sampling_rate = self.trigger_stream[0].stats.sampling_rate
-        self.trigger_stream.spectrogram(
-            wlen=2 * sampling_rate,
-            per_lap=0.95,
-            dbscale=True,
-            log=False,
-            axes=self.mw_axes,
-            cmap=plt.cm.jet,
+        trace = self.trigger_stream[0]
+        sampling_rate = trace.stats.sampling_rate
+        data_points = len(trace.data)
+        if data_points == 0 or sampling_rate <= 0:
+            logger.warning(
+                "Skipping spectrogram rendering because the trace is empty or has an"
+                " invalid sampling rate."
+            )
+            self.mw.draw()
+            return
+
+        data_duration = data_points / sampling_rate
+        minimum_window = max(2.0 / sampling_rate, 0.05)
+        adaptive_window = max(data_duration / 20.0, minimum_window)
+        wlen = min(adaptive_window, data_duration)
+        samples_per_window = int(round(wlen * sampling_rate))
+        if samples_per_window < 2:
+            logger.warning(
+                "Trace too short to render spectrogram (duration=%s s, sampling_rate=%s Hz).",
+                data_duration,
+                sampling_rate,
+            )
+            self.mw_axes.clear()
+            self.mw_axes.text(
+                0.5,
+                0.5,
+                "Spectrogram unavailable",
+                transform=self.mw_axes.transAxes,
+                ha="center",
+                va="center",
+            )
+            self.mw.draw()
+            return
+
+        nfft = int(2 ** np.ceil(np.log2(samples_per_window)))
+        logger.debug(
+            "Spectrogram configuration: duration=%s, wlen=%s, samples_per_window=%s, "
+            "nfft=%s",
+            data_duration,
+            wlen,
+            samples_per_window,
+            nfft,
         )
 
-        data_duration = len(self.trigger_stream[0].data) / sampling_rate
-        wlen = max(data_duration * 0.01, 1)
-        nfft = 2 ** np.ceil(np.log2(wlen * sampling_rate))
-        logger.debug("Spectrogram configuration: wlen=%s, nfft=%s", wlen, nfft)
-
-        self.trigger_stream.spectrogram(
-            wlen=wlen,
-            per_lap=0.95,
-            dbscale=True,
-            log=False,
-            axes=self.mw_axes,
-            cmap=plt.cm.jet,
-        )
+        try:
+            self.trigger_stream.spectrogram(
+                wlen=wlen,
+                per_lap=0.95,
+                nfft=nfft,
+                dbscale=True,
+                log=False,
+                axes=self.mw_axes,
+                cmap=plt.cm.jet,
+            )
+        except ValueError as exc:
+            logger.warning("Unable to render spectrogram: %s", exc)
+            self.mw_axes.clear()
+            self.mw_axes.text(
+                0.5,
+                0.5,
+                "Spectrogram unavailable",
+                transform=self.mw_axes.transAxes,
+                ha="center",
+                va="center",
+            )
 
         self.mw.draw()
 
