@@ -3,6 +3,17 @@
 > Última actualización: 2026-04-10  
 > Propósito: tener una vista rápida y mantenible del flujo STA/LTA y Deep Learning.
 
+## 0) Cómo visualizar este archivo en VS Code con PlantUML
+
+Si usas PlantUML en VS Code, copia cualquiera de los bloques `@startuml ... @enduml` de este documento a un archivo `.puml` (por ejemplo `docs/PIPELINE_MAP_HIGH_LEVEL.puml`) y abre **PlantUML: Preview Current Diagram**.
+
+Sugerencia rápida:
+1. Crea `docs/PIPELINE_MAP_HIGH_LEVEL.puml` y pega el bloque de la sección 2A.
+2. Crea `docs/PIPELINE_MAP_SEQUENCE_GUI.puml` y pega el bloque de la sección 3A.
+3. Usa el preview de la extensión PlantUML para exportar PNG/SVG.
+
+---
+
 ## 1) Qué entra y qué sale
 
 ### Entradas
@@ -18,6 +29,52 @@
 ---
 
 ## 2) Mapa de alto nivel (GUI/CLI)
+
+### 2A) PlantUML (recomendado para tu entorno)
+
+```plantuml
+@startuml
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+actor Operador
+
+rectangle "GUI o CLI" as GUI
+rectangle "Configuración\nxaap_config" as CFG
+rectangle "request_data\nrequest_stream" as REQ
+rectangle "pre_process\npre_process_stream" as PRE
+diamond "Método de\ndetección" as DEC
+rectangle "detect_trigger\nget_triggers" as STA
+rectangle "process_deep_learning\ncreate_model" as M
+rectangle "process_deep_learning\nget_detections" as D
+rectangle "process_deep_learning\ncoincidence_detection" as CD
+rectangle "plot_triggers" as PT
+rectangle "plot_picks" as PP
+rectangle "clasificación" as CL
+rectangle "CSV clasificación" as CSVCL
+
+Operador --> GUI
+GUI --> CFG
+CFG --> REQ
+REQ --> PRE
+PRE --> DEC
+
+DEC --> STA : STA/LTA
+STA --> PT
+
+DEC --> M : Deep Learning
+M --> D
+D --> CD
+CD --> PT
+D --> PP
+
+STA --> CL : opcional
+CD --> CL : opcional
+CL --> CSVCL
+@enduml
+```
+
+### 2B) Mermaid (opcional)
 
 ```mermaid
 flowchart TD
@@ -49,6 +106,57 @@ flowchart TD
 ---
 
 ## 3) Secuencia GUI (operativa)
+
+### 3A) PlantUML (recomendado para tu entorno)
+
+```plantuml
+@startuml
+skinparam shadowing false
+
+actor Operador as U
+participant xaap_gui as G
+participant xaap_config as C
+participant request_data as R
+participant pre_process as P
+participant detect_trigger as DT
+participant process_deep_learning as DL
+
+U -> G : update_parameters
+G -> C : construir/actualizar configuración
+
+U -> G : request_data
+G -> R : request_stream(config)
+R --> G : volcan_stream
+
+U -> G : pre_process
+G -> P : pre_process_stream(config, stream)
+P --> G : stream preprocesado
+
+alt STA/LTA
+  U -> G : detection_sta_lta
+  G -> DT : get_triggers(config, stream)
+  DT --> G : triggers
+  G -> G : plot_triggers()
+else Deep Learning
+  U -> G : detection_deep_learning
+  G -> DL : create_model(config)
+  G -> DL : get_detections(config, stream_por_estación, model)
+  DL --> G : detections
+  G -> DL : coincidence_detection_deep_learning(config, detections)
+  DL --> G : coincidence triggers
+  G -> G : plot_triggers()
+  G -> G : plot_picks()
+end
+
+opt Clasificación
+  U -> G : classify_detections
+  G -> G : classify_detections()
+  G --> U : CSV clasificación
+end
+@enduml
+```
+
+### 3B) Mermaid (opcional)
 
 ```mermaid
 sequenceDiagram
