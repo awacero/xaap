@@ -43,7 +43,7 @@ rectangle "GUI o CLI" as GUI
 rectangle "Configuración\nxaap_config" as CFG
 rectangle "request_data\nrequest_stream" as REQ
 rectangle "pre_process\npre_process_stream" as PRE
-diamond "Método de\ndetección" as DEC
+rectangle "Método de\ndetección" as DEC
 rectangle "detect_trigger\nget_triggers" as STA
 rectangle "process_deep_learning\ncreate_model" as M
 rectangle "process_deep_learning\nget_detections" as D
